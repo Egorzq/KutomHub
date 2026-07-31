@@ -394,7 +394,7 @@ do
     apBtn.MouseButton1Click:Connect(function() mySetts.selectedPackName = "Custom" mySetts.selectedPackData = {mI.Text, mW.Text, mR.Text, mJ.Text, mF.Text} saveData() updatePackUI() applyCurrentMovePack() showNotice("Кастомные ID применены!") end)
 end
 
--- ================== 3. VIP-МЕНЮ (СТАТЫ И УМНЫЙ FLING) ==================
+-- ================== 3. VIP-МЕНЮ (СТАТЫ, АНТИ-ФЛИНГ И ТЕЛЕПОРТ) ==================
 do
     local function getTarget(nameStr)
         nameStr = nameStr:lower()
@@ -479,108 +479,10 @@ do
             local mouse = player:GetMouse()
             if mouse.Target and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then player.Character.HumanoidRootPart.CFrame = CFrame.new(mouse.Hit.p + Vector3.new(0, 3, 0)) end
         end)
-        tpTool.Parent = player.Backpack showNotice("Невиди Click TP выдан в инвентарь!")
+        tpTool.Parent = player.Backpack showNotice("Невидимый Click TP выдан в инвентарь!")
     end)
 
-    -- УМНЫЙ FLING (С ВОЗВРАТОМ)
-    make("TextLabel", {Size = U2(1, -10, 0, 25), BackgroundTransparency = 1, TextColor3 = C3(150, 50, 200), Text = "🌪️ Универсальный Fling", Font = Enum.Font.GothamBold, TextSize = 13, LayoutOrder = 16}, vVip)
-    
-    local flingInp = make("TextBox", {Size = U2(1, -10, 0, 30), BackgroundColor3 = C3(20, 20, 26), TextColor3 = C3(255, 255, 255), PlaceholderText = "Ник для Флинга...", Text = "", Font = Enum.Font.Gotham, TextSize = 12, LayoutOrder = 17}, vVip) addCorner(flingInp, 6)
-    local flingBtn = make("TextButton", {Size = U2(1, -10, 0, 34), BackgroundColor3 = C3(25, 25, 32), TextColor3 = C3(220, 220, 220), Text = "Умный Fling (С возвратом): ВЫКЛ", Font = Enum.Font.GothamBold, TextSize = 12, LayoutOrder = 18}, vVip) addCorner(flingBtn, 6)
-
-    local isFling = false
-    local flingTarget = nil
-    local flingConn = nil
-    local returnPosition = nil
-
-    local function stopFling()
-        isFling = false
-        flingTarget = nil
-        flingBtn.Text = "Умный Fling (С возвратом): ВЫКЛ"
-        tween(flingBtn, 0.2, {BackgroundColor3 = C3(25, 25, 32)})
-        
-        if flingConn then flingConn:Disconnect() flingConn = nil end
-        
-        local char = player.Character
-        local hrp = char and char:FindFirstChild("HumanoidRootPart")
-        local hum = char and char:FindFirstChildOfClass("Humanoid")
-        
-        if hrp then 
-            hrp.Velocity = Vector3.zero 
-            hrp.RotVelocity = Vector3.zero 
-            if hrp:FindFirstChild("KutomFling") then hrp.KutomFling:Destroy() end
-            
-            if returnPosition then
-                hrp.CFrame = returnPosition
-                returnPosition = nil
-            end
-            
-            for _, v in ipairs(char:GetDescendants()) do
-                if v:IsA("BasePart") then v.CanCollide = true end
-            end
-        end
-        if hum then hum.PlatformStand = false end
-    end
-
-    flingBtn.MouseButton1Click:Connect(function()
-        if isFling then
-            stopFling()
-        else
-            local t = getTarget(flingInp.Text)
-            if t then
-                local char = player.Character
-                local hrp = char and char:FindFirstChild("HumanoidRootPart")
-                local hum = char and char:FindFirstChildOfClass("Humanoid")
-                if not hrp or not hum then return end
-                
-                returnPosition = hrp.CFrame
-                flingTarget = t
-                isFling = true
-                flingBtn.Text = "Flinging: " .. t.Name
-                tween(flingBtn, 0.2, {BackgroundColor3 = C3(150, 50, 200)})
-                
-                hum.PlatformStand = true
-                
-                local spin = hrp:FindFirstChild("KutomFling") or Instance.new("BodyAngularVelocity")
-                spin.Name = "KutomFling"
-                spin.AngularVelocity = Vector3.new(0, 99999, 0)
-                spin.MaxTorque = Vector3.new(0, math.huge, 0)
-                spin.P = math.huge
-                spin.Parent = hrp
-
-                flingConn = RS.Stepped:Connect(function()
-                    if not isFling or not flingTarget then stopFling() return end
-                    
-                    local tChar = flingTarget.Character
-                    local tHrp = tChar and tChar:FindFirstChild("HumanoidRootPart")
-                    local tHum = tChar and tChar:FindFirstChildOfClass("Humanoid")
-                    
-                    local isFallen = tHrp and (tHrp.Position.Y < -50)
-                    local isFlung = tHrp and (tHrp.Velocity.Magnitude > 150)
-                    
-                    if tHrp and tHum and tHum.Health > 0 and not isFallen and not isFlung then
-                        for _, v in ipairs(char:GetChildren()) do
-                            if v:IsA("BasePart") and v.Name ~= "HumanoidRootPart" then
-                                v.CanCollide = false
-                            end
-                        end
-                        hrp.CanCollide = true
-                        
-                        hrp.Velocity = Vector3.zero
-                        hrp.RotVelocity = Vector3.new(50000, 50000, 50000)
-                        hrp.CFrame = tHrp.CFrame
-                    else
-                        showNotice("✅ Игрок " .. flingTarget.Name .. " устранен!")
-                        stopFling()
-                    end
-                end)
-            else
-                showNotice("⚠️ Игрок не найден!")
-            end
-        end
-    end)
-
-    -- ТЕЛЕПОРТ К ИГРОКУ (VIP)
+    -- ТЕЛЕПОРТ К ИГРОКУ
     make("TextLabel", {Size = U2(1, -10, 0, 25), BackgroundTransparency = 1, TextColor3 = C3(150, 150, 255), Text = "✈️ Телепорт к игроку", Font = Enum.Font.GothamBold, TextSize = 13, LayoutOrder = 25}, vVip)
     local tpPlrInp = make("TextBox", {Size = U2(1, -10, 0, 30), BackgroundColor3 = C3(20, 20, 26), TextColor3 = C3(255, 255, 255), PlaceholderText = "Ник игрока...", Text = "", Font = Enum.Font.Gotham, TextSize = 12, LayoutOrder = 26}, vVip) addCorner(tpPlrInp, 6)
     local tpPlrBtn = make("TextButton", {Size = U2(1, -10, 0, 34), BackgroundColor3 = C3(40, 120, 200), TextColor3 = C3(255, 255, 255), Text = "Телепортироваться", Font = Enum.Font.GothamBold, TextSize = 12, LayoutOrder = 27}, vVip) addCorner(tpPlrBtn, 6)
@@ -608,7 +510,7 @@ do
 
     RS.Stepped:Connect(function()
         if isAntiFling then
-            -- 1. Делаем чужих игроков прозрачными (защита от касания)
+            -- 1. Делаем чужих игроков прозрачными для физики
             for _, p in ipairs(game:GetService("Players"):GetPlayers()) do
                 if p ~= player and p.Character then
                     for _, v in ipairs(p.Character:GetChildren()) do
@@ -616,7 +518,7 @@ do
                     end
                 end
             end
-            -- 2. Гасим абсурдную скорость, если кто-то попытался толкнуть
+            -- 2. Гасим абсурдную скорость (анти-отлет)
             if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
                 local hrp = player.Character.HumanoidRootPart
                 if hrp.Velocity.Magnitude > 250 or hrp.RotVelocity.Magnitude > 250 then
@@ -747,7 +649,8 @@ end
 do
     make("TextLabel", {Size = U2(1, -10, 0, 30), BackgroundTransparency = 1, TextColor3 = C3(255, 215, 0), Text = "🔪 MM2 Менеджер Треков", Font = Enum.Font.GothamBold, TextSize = 14, LayoutOrder = 0}, vMm2)
 
-    local mm2TrackScroll = make("ScrollingFrame", {Size = U2(1, -10, 0, 160), BackgroundColor3 = C3(15, 15, 20), ScrollBarThickness = 3, AutomaticCanvasSize = Enum.AutomaticSize.Y, CanvasSize = U2(0, 0, 0, 0), LayoutOrder = 1}, vMm2) addCorner(mm2TrackScroll, 6) 
+    local mm2TrackScroll = make("ScrollingFrame", {Size = U2(1, -10, 0, 250), BackgroundColor3 = C3(15, 15, 20), ScrollBarThickness = 3, AutomaticCanvasSize = Enum.AutomaticSize.Y, CanvasSize = U2(0, 0, 0, 0), LayoutOrder = 1}, vMm2) 
+    addCorner(mm2TrackScroll, 6) 
     make("UIListLayout", {SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 4)}, mm2TrackScroll)
 
     local function renderMm2Tracks()
@@ -791,6 +694,9 @@ do
 
     make("TextLabel", {Size = U2(1, -10, 0, 35), BackgroundTransparency = 1, TextColor3 = C3(255, 80, 80), Text = "🛠️ MM2 Читы", Font = Enum.Font.GothamBold, TextSize = 13, LayoutOrder = 6}, vMm2)
 
+    local tpMurdBtn = make("TextButton", {Size = U2(1, -10, 0, 34), BackgroundColor3 = C3(180, 50, 50), TextColor3 = C3(255, 255, 255), Text = "Телепорт к Маньяку", Font = Enum.Font.GothamBold, TextSize = 12, LayoutOrder = 7}, vMm2) addCorner(tpMurdBtn, 6)
+    local tpSherBtn = make("TextButton", {Size = U2(1, -10, 0, 34), BackgroundColor3 = C3(50, 100, 180), TextColor3 = C3(255, 255, 255), Text = "Телепорт к Шерифу", Font = Enum.Font.GothamBold, TextSize = 12, LayoutOrder = 8}, vMm2) addCorner(tpSherBtn, 6)
+
     local roleEspFolder = Instance.new("Folder", game.CoreGui) roleEspFolder.Name = "MM2_RoleESP"
     local gunEspFolder = Instance.new("Folder", game.CoreGui) gunEspFolder.Name = "MM2_GunESP"
     local coinEspFolder = Instance.new("Folder", game.CoreGui) coinEspFolder.Name = "MM2_CoinESP"
@@ -805,15 +711,14 @@ do
     local isCoinEsp = false
     local isAutoCoinSmooth = false
 
-    local rEspBtn = make("TextButton", {Size = U2(1, -10, 0, 34), BackgroundColor3 = C3(25, 25, 32), TextColor3 = C3(220, 220, 220), Text = "Role ESP: ВЫКЛ", Font = Enum.Font.GothamBold, TextSize = 12, LayoutOrder = 7}, vMm2) addCorner(rEspBtn, 6)
-    local gEspBtn = make("TextButton", {Size = U2(1, -10, 0, 34), BackgroundColor3 = C3(25, 25, 32), TextColor3 = C3(220, 220, 220), Text = "Gun Drop ESP: ВЫКЛ", Font = Enum.Font.GothamBold, TextSize = 12, LayoutOrder = 8}, vMm2) addCorner(gEspBtn, 6)
-    local aGrabBtn = make("TextButton", {Size = U2(1, -10, 0, 34), BackgroundColor3 = C3(25, 25, 32), TextColor3 = C3(220, 220, 220), Text = "Автоподбор пистолета: ВЫКЛ", Font = Enum.Font.GothamBold, TextSize = 12, LayoutOrder = 9}, vMm2) addCorner(aGrabBtn, 6)
-    local coinEspBtn = make("TextButton", {Size = U2(1, -10, 0, 34), BackgroundColor3 = C3(25, 25, 32), TextColor3 = C3(220, 220, 220), Text = "Coin ESP (Монеты): ВЫКЛ", Font = Enum.Font.GothamBold, TextSize = 12, LayoutOrder = 10}, vMm2) addCorner(coinEspBtn, 6)
+    local rEspBtn = make("TextButton", {Size = U2(1, -10, 0, 34), BackgroundColor3 = C3(25, 25, 32), TextColor3 = C3(220, 220, 220), Text = "Role ESP: ВЫКЛ", Font = Enum.Font.GothamBold, TextSize = 12, LayoutOrder = 9}, vMm2) addCorner(rEspBtn, 6)
+    local gEspBtn = make("TextButton", {Size = U2(1, -10, 0, 34), BackgroundColor3 = C3(25, 25, 32), TextColor3 = C3(220, 220, 220), Text = "Gun Drop ESP: ВЫКЛ", Font = Enum.Font.GothamBold, TextSize = 12, LayoutOrder = 10}, vMm2) addCorner(gEspBtn, 6)
+    local aGrabBtn = make("TextButton", {Size = U2(1, -10, 0, 34), BackgroundColor3 = C3(25, 25, 32), TextColor3 = C3(220, 220, 220), Text = "Автоподбор пистолета: ВЫКЛ", Font = Enum.Font.GothamBold, TextSize = 12, LayoutOrder = 11}, vMm2) addCorner(aGrabBtn, 6)
+    local coinEspBtn = make("TextButton", {Size = U2(1, -10, 0, 34), BackgroundColor3 = C3(25, 25, 32), TextColor3 = C3(220, 220, 220), Text = "Coin ESP (Монеты): ВЫКЛ", Font = Enum.Font.GothamBold, TextSize = 12, LayoutOrder = 12}, vMm2) addCorner(coinEspBtn, 6)
     
-    local autoCoinSmoothBtn = make("TextButton", {Size = U2(1, -10, 0, 34), BackgroundColor3 = C3(25, 25, 32), TextColor3 = C3(220, 220, 220), Text = "Авто-Фарм Монет (Крот/Пешком): ВЫКЛ", Font = Enum.Font.GothamBold, TextSize = 12, LayoutOrder = 11}, vMm2) addCorner(autoCoinSmoothBtn, 6)
-    
-    local camAimBtn = make("TextButton", {Size = U2(1, -10, 0, 34), BackgroundColor3 = C3(25, 25, 32), TextColor3 = C3(220, 220, 220), Text = "Aimbot (Скрытый + CamLock): ВЫКЛ", Font = Enum.Font.GothamBold, TextSize = 12, LayoutOrder = 12}, vMm2) addCorner(camAimBtn, 6)
-    local crosshairBtn = make("TextButton", {Size = U2(1, -10, 0, 34), BackgroundColor3 = C3(25, 25, 32), TextColor3 = C3(220, 220, 220), Text = "Радужный прицел: ВЫКЛ", Font = Enum.Font.GothamBold, TextSize = 12, LayoutOrder = 13}, vMm2) addCorner(crosshairBtn, 6)
+    local autoCoinSmoothBtn = make("TextButton", {Size = U2(1, -10, 0, 34), BackgroundColor3 = C3(25, 25, 32), TextColor3 = C3(220, 220, 220), Text = "Авто-Фарм Монет (Крот/Пешком): ВЫКЛ", Font = Enum.Font.GothamBold, TextSize = 12, LayoutOrder = 13}, vMm2) addCorner(autoCoinSmoothBtn, 6)
+    local camAimBtn = make("TextButton", {Size = U2(1, -10, 0, 34), BackgroundColor3 = C3(25, 25, 32), TextColor3 = C3(220, 220, 220), Text = "Aimbot (Скрытый + CamLock): ВЫКЛ", Font = Enum.Font.GothamBold, TextSize = 12, LayoutOrder = 14}, vMm2) addCorner(camAimBtn, 6)
+    local crosshairBtn = make("TextButton", {Size = U2(1, -10, 0, 34), BackgroundColor3 = C3(25, 25, 32), TextColor3 = C3(220, 220, 220), Text = "Радужный прицел: ВЫКЛ", Font = Enum.Font.GothamBold, TextSize = 12, LayoutOrder = 15}, vMm2) addCorner(crosshairBtn, 6)
 
     rEspBtn.MouseButton1Click:Connect(function() 
         isRoleEsp = not isRoleEsp 
@@ -878,6 +783,25 @@ do
         end
     end)
 
+    local function tpToRole(roleName, roleRus)
+        local targetChar = nil
+        for _, p in ipairs(game.Players:GetPlayers()) do
+            if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
+                local r, _ = getRoleInfo(p)
+                if r == roleName then targetChar = p.Character break end
+            end
+        end
+        if targetChar and targetChar:FindFirstChild("HumanoidRootPart") then
+            if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                player.Character.HumanoidRootPart.CFrame = targetChar.HumanoidRootPart.CFrame * CFrame.new(0, 0, 3)
+                showNotice("Телепортировано к " .. roleRus)
+            end
+        else showNotice("⚠️ " .. roleRus .. " не найден или мертв!") end
+    end
+
+    tpMurdBtn.MouseButton1Click:Connect(function() tpToRole("MURDERER", "Маньяку") end)
+    tpSherBtn.MouseButton1Click:Connect(function() tpToRole("SHERIFF", "Шерифу") end)
+
     UIS.InputBegan:Connect(function(input, gp)
         if not gp and input.UserInputType == Enum.UserInputType.MouseButton2 then isAiming = true end
     end)
@@ -895,10 +819,7 @@ do
             for _, p in ipairs(game.Players:GetPlayers()) do
                 if p ~= player and p.Character and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
                     local role, _ = getRoleInfo(p)
-                    if role == "MURDERER" then
-                        murdChar = p.Character
-                        break
-                    end
+                    if role == "MURDERER" then murdChar = p.Character break end
                 end
             end
             if murdChar then
@@ -906,9 +827,7 @@ do
                 if targetPart then
                     local cam = workspace.CurrentCamera
                     cam.CFrame = CFrame.lookAt(cam.CFrame.Position, targetPart.Position)
-                    if hrp then 
-                        hrp.CFrame = CFrame.lookAt(hrp.Position, Vector3.new(targetPart.Position.X, hrp.Position.Y, targetPart.Position.Z)) 
-                    end
+                    if hrp then hrp.CFrame = CFrame.lookAt(hrp.Position, Vector3.new(targetPart.Position.X, hrp.Position.Y, targetPart.Position.Z)) end
                 end
             end
         end
@@ -1164,7 +1083,47 @@ do
     end)
     cfgDel.MouseButton1Click:Connect(function() local name = cfgNameInp.Text if name ~= "" and delfile and isfile and isfile(name..".json") then pcall(function() delfile(name..".json") end) showNotice("Удалено!") end end)
 
-    local clickerCont = make("Frame", {Size = U2(1, -10, 0, 65), BackgroundColor3 = C3(22, 22, 28), LayoutOrder = 5}, vSetts) addCorner(clickerCont, 6)
+    -- БЛОК ОБЛАЧНОГО ПЕРЕНОСА (Cloud Sync через Буфер Обмена)
+    local syncCont = make("Frame", {Size = U2(1, -10, 0, 85), BackgroundColor3 = C3(22, 22, 28), LayoutOrder = 5}, vSetts) addCorner(syncCont, 6)
+    make("TextLabel", {Size = U2(1, 0, 0, 25), BackgroundTransparency = 1, TextColor3 = C3(255, 215, 0), Text = "☁️ Облачный перенос (Текст)", Font = Enum.Font.GothamBold, TextSize = 12, TextXAlignment = Enum.TextXAlignment.Center}, syncCont)
+    
+    local syncInp = make("TextBox", {Size = U2(1, -10, 0, 26), Position = U2(0, 5, 0, 25), BackgroundColor3 = C3(15, 15, 20), TextColor3 = C3(255, 255, 255), PlaceholderText = "Вставь код сюда...", Text = "", Font = Enum.Font.Gotham, TextSize = 11, TextTruncate = Enum.TextTruncate.AtEnd}, syncCont) addCorner(syncInp, 4)
+
+    local exportBtn = make("TextButton", {Size = U2(0.48, -2, 0, 24), Position = U2(0, 5, 0, 55), BackgroundColor3 = C3(40, 160, 60), TextColor3 = C3(255, 255, 255), Text = "📋 Скопировать код", Font = Enum.Font.GothamBold, TextSize = 11}, syncCont) addCorner(exportBtn, 4)
+    local importBtn = make("TextButton", {Size = U2(0.48, -2, 0, 24), Position = U2(0.52, 0, 0, 55), BackgroundColor3 = C3(40, 120, 200), TextColor3 = C3(255, 255, 255), Text = "📥 Вставить код", Font = Enum.Font.GothamBold, TextSize = 11}, syncCont) addCorner(importBtn, 4)
+
+    exportBtn.MouseButton1Click:Connect(function()
+        if setclipboard then
+            local dataToSave = {customAnims = customAnims, binds = binds, allTeleports = allTeleports, mySetts = mySetts, mm2Tracks = mm2Tracks}
+            setclipboard(Http:JSONEncode(dataToSave))
+            showNotice("Код скопирован! Отправь его в Telegram/VK.")
+        else
+            showNotice("⚠️ Твой инжектор не поддерживает копирование!")
+        end
+    end)
+
+    importBtn.MouseButton1Click:Connect(function()
+        local txt = syncInp.Text
+        if txt ~= "" then
+            pcall(function()
+                local data = Http:JSONDecode(txt)
+                if data then
+                    customAnims = data.customAnims or {}
+                    binds = data.binds or {}
+                    allTeleports = data.allTeleports or {}
+                    mm2Tracks = data.mm2Tracks or mm2Tracks
+                    if data.mySetts then for k, v in pairs(data.mySetts) do mySetts[k] = v end end
+                    saveData()
+                    showNotice("✅ Конфиг успешно перенесен! Перезайди.")
+                    syncInp.Text = ""
+                end
+            end)
+        else
+            showNotice("⚠️ Сначала вставь код в поле выше!")
+        end
+    end)
+
+    local clickerCont = make("Frame", {Size = U2(1, -10, 0, 65), BackgroundColor3 = C3(22, 22, 28), LayoutOrder = 6}, vSetts) addCorner(clickerCont, 6)
     local clickBtn = make("ImageButton", {Size = U2(0, 45, 0, 45), Position = U2(0, 10, 0, 10), BackgroundColor3 = C3(40, 40, 50), Image = "rbxassetid://124115730204552", ScaleType = Enum.ScaleType.Crop}, clickerCont) make("UICorner", {CornerRadius = UDim.new(1, 0)}, clickBtn)
     local clickLabel = make("TextLabel", {Size = U2(1, -70, 0, 40), Position = U2(0, 65, 0, 12), BackgroundTransparency = 1, TextColor3 = C3(255, 215, 0), Text = "Кликов: "..tostring(mySetts.clicks), Font = Enum.Font.GothamBold, TextSize = 13, TextXAlignment = Enum.TextXAlignment.Left}, clickerCont)
     clickBtn.MouseButton1Click:Connect(function() mySetts.clicks = mySetts.clicks + 1 clickLabel.Text = "Кликов: "..tostring(mySetts.clicks) saveData() tween(clickBtn, 0.1, {Size = U2(0, 40, 0, 40), Position = U2(0, 12, 0, 12)}) task.delay(0.1, function() tween(clickBtn, 0.1, {Size = U2(0, 45, 0, 45), Position = U2(0, 10, 0, 10)}) end) end)
