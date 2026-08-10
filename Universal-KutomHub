@@ -448,6 +448,7 @@ do
         tween(btnTabSearch, 0.2, {BackgroundColor3 = Color3.fromRGB(25, 25, 32), TextColor3 = Color3.fromRGB(200,200,200)})
     end)
 
+    -- ФУНКЦИИ ВОСПРОИЗВЕДЕНИЯ
     local isLoopAnim = true
     playAnim = function(id)
         local char = player.Character if not char then return end 
@@ -949,6 +950,7 @@ do
         end)
     end)
 
+    local gunSearchTick = 0
     task.spawn(function()
         while task.wait(0.05) do
             pcall(function()
@@ -1309,7 +1311,8 @@ do
 
                 if not inAir then
                     timeOnGround = timeOnGround + dt
-                    if timeOnGround > 0.15 then
+                    -- Увеличили время до 0.5 секунд, чтобы комбо не сбрасывалось при резких поворотах
+                    if timeOnGround > 0.5 then
                         currentBhopSpeed = baseSpeed
                     end
                     if isMoving and UIS:IsKeyDown(Enum.KeyCode.Space) then
@@ -1319,10 +1322,6 @@ do
                     end
                 else
                     timeOnGround = 0
-                end
-                
-                if not isMoving then
-                    currentBhopSpeed = baseSpeed
                 end
                 
                 hum.WalkSpeed = currentBhopSpeed
