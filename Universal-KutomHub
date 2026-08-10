@@ -19,10 +19,7 @@ local currentAnimId = nil
 local isFastResetting = false
 local fastResetCFrame = nil
 
-local isCamAimbot = false
-local isAiming = false
 local mm2EarlyRoles = {}
-
 local isRoleEsp = false
 local isGunEsp = false
 local isAutoGrab = false
@@ -32,7 +29,6 @@ local flingTarget = nil
 local flingConn = nil
 local returnPosition = nil
 local isAntiFling = false
-local expandHitboxes = false
 
 -- Функция определения ролей
 local function getRoleInfo(p)
@@ -58,43 +54,6 @@ local function getRoleInfo(p)
     if mur then return "MURDERER", Color3.fromRGB(255, 50, 50) end
     if sher then return "SHERIFF", Color3.fromRGB(50, 150, 255) end
     return "Innocent", Color3.fromRGB(50, 255, 50)
-end
-
--- ================== SILENT AIM ==================
-if hookmetamethod then
-    pcall(function()
-        local oldIndex
-        oldIndex = hookmetamethod(game, "__index", function(t, k)
-            if not checkcaller() and isCamAimbot and isAiming then
-                if typeof(t) == "Instance" and t:IsA("Mouse") then
-                    if k == "Hit" or k == "Target" or k == "p" or k == "X" or k == "Y" or k == "Z" then
-                        local murdChar = nil
-                        for _, p in ipairs(Players:GetPlayers()) do
-                            if p ~= player and p.Character and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
-                                local role, _ = getRoleInfo(p)
-                                if role == "MURDERER" then
-                                    murdChar = p.Character
-                                    break
-                                end
-                            end
-                        end
-                        if murdChar then
-                            local part = murdChar:FindFirstChild("Torso") or murdChar:FindFirstChild("UpperTorso") or murdChar:FindFirstChild("Head")
-                            if part and part.Parent then
-                                if k == "Hit" then return part.CFrame end
-                                if k == "p" then return part.Position end
-                                if k == "X" then return part.Position.X end
-                                if k == "Y" then return part.Position.Y end
-                                if k == "Z" then return part.Position.Z end
-                                if k == "Target" then return part end
-                            end
-                        end
-                    end
-                end
-            end
-            return oldIndex(t, k)
-        end)
-    end)
 end
 
 -- ================== СОХРАНЕНИЕ ==================
@@ -456,8 +415,11 @@ local function startFling(t)
             
             if hrp and tHrp and tHum and tHum.Health > 0 then
                 for _, v in ipairs(player.Character:GetChildren()) do if v:IsA("BasePart") and v.Name ~= "HumanoidRootPart" then v.CanCollide = false end end
-                hrp.CanCollide = true hrp.Velocity = Vector3.zero hrp.RotVelocity = Vector3.new(50000, 50000, 50000) 
-                hrp.CFrame = tHrp.CFrame
+                hrp.CanCollide = true 
+                -- Агрессивный физический импульс
+                hrp.Velocity = Vector3.new(math.random(-100, 100), 10000, math.random(-100, 100)) 
+                hrp.RotVelocity = Vector3.new(20000, 20000, 20000) 
+                hrp.CFrame = tHrp.CFrame * CFrame.new(math.random(-1,1), math.random(-1,1), math.random(-1,1))
             else
                 showNotice("✅ Цель устранена или вышла!")
                 stopFling()
@@ -466,7 +428,7 @@ local function startFling(t)
     end)
 end
 
--- ================== 1. ЭМОЦИИ (С ПОИСКОМ И ТОЛЬКО КАСТОМНЫЕ) ==================
+-- ================== 1. ЭМОЦИИ (ТОЛЬКО КАСТОМНЫЕ) ==================
 do
     local EmotesTop = make("Frame", {Size = UDim2.new(1, -10, 0, 30), BackgroundTransparency = 1}, vEmotes)
     local btnTabSearch = make("TextButton", {Size = UDim2.new(0.5, -5, 1, 0), BackgroundColor3 = Color3.fromRGB(40, 120, 200), Text = "🔍 Поиск", TextColor3 = Color3.fromRGB(255,255,255), Font = Enum.Font.GothamBold, TextSize = 12}, EmotesTop) addCorner(btnTabSearch, 6)
@@ -486,7 +448,6 @@ do
         tween(btnTabSearch, 0.2, {BackgroundColor3 = Color3.fromRGB(25, 25, 32), TextColor3 = Color3.fromRGB(200,200,200)})
     end)
 
-    -- ФУНКЦИИ ВОСПРОИЗВЕДЕНИЯ
     local isLoopAnim = true
     playAnim = function(id)
         local char = player.Character if not char then return end 
@@ -629,9 +590,8 @@ do
     end, Color3.fromRGB(40, 120, 200), 7)
 end
 
--- ================== 2. ДВИЖЕНИЯ (С ПОИСКОМ БАНДЛОВ И ТОЛЬКО КАСТОМНЫЕ) ==================
+-- ================== 2. ДВИЖЕНИЯ (ТОЛЬКО КАСТОМНЫЕ) ==================
 do
-    -- ВКЛАДКИ
     local MoveTop = make("Frame", {Size = UDim2.new(1, -10, 0, 30), BackgroundTransparency = 1}, vMove)
     local btnMoveSearch = make("TextButton", {Size = UDim2.new(0.5, -5, 1, 0), BackgroundColor3 = Color3.fromRGB(40, 120, 200), Text = "🔍 Поиск Паков", TextColor3 = Color3.fromRGB(255,255,255), Font = Enum.Font.GothamBold, TextSize = 12}, MoveTop) addCorner(btnMoveSearch, 6)
     local btnMoveSaved = make("TextButton", {Size = UDim2.new(0.5, -5, 1, 0), Position = UDim2.new(0.5, 5, 0, 0), BackgroundColor3 = Color3.fromRGB(25, 25, 32), Text = "⭐ Сохраненные", TextColor3 = Color3.fromRGB(200,200,200), Font = Enum.Font.GothamBold, TextSize = 12}, MoveTop) addCorner(btnMoveSaved, 6)
@@ -650,7 +610,6 @@ do
         tween(btnMoveSearch, 0.2, {BackgroundColor3 = Color3.fromRGB(25, 25, 32), TextColor3 = Color3.fromRGB(200,200,200)})
     end)
 
-    -- ФУНКЦИИ УСТАНОВКИ ПАКОВ
     local function setMove(st, an, id) 
         if not id or id == "" then return end 
         local c = player.Character 
@@ -695,24 +654,15 @@ do
                     elseif n:find("jump") then jumpId = idStr
                     elseif n:find("fall") or n:find("pose") then fallId = idStr end
                 end
-
                 idleId = idleId or details.Items[1] and tostring(details.Items[1].Id)
-                walkId = walkId or idleId
-                runId = runId or walkId
-                jumpId = jumpId or idleId
-                fallId = fallId or jumpId
-
+                walkId = walkId or idleId runId = runId or walkId jumpId = jumpId or idleId fallId = fallId or jumpId
                 mySetts.selectedPackData = {idleId, walkId, runId, jumpId, fallId}
-                saveData()
-                applyMove(idleId, walkId, runId, jumpId, fallId)
+                saveData() applyMove(idleId, walkId, runId, jumpId, fallId)
                 showNotice("Пак " .. bundleName .. " успешно применен!")
-            else
-                showNotice("⚠️ Не удалось распаковать пак!")
-            end
+            else showNotice("⚠️ Не удалось распаковать пак!") end
         end)
     end
 
-    -- ПОИСКОВИК БАНДЛОВ
     make("UIListLayout", {SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 8)}, vMoveSearch)
     local bundleSearchRow = make("Frame", {Size = UDim2.new(1, -10, 0, 35), BackgroundTransparency = 1, LayoutOrder = 1}, vMoveSearch)
     local bundleInp = make("TextBox", {Size = UDim2.new(0.65, -5, 1, 0), BackgroundColor3 = Color3.fromRGB(20, 20, 26), PlaceholderText = "Англ. название (напр: Ninja, Superhero)...", Text = "", TextColor3 = Color3.fromRGB(255, 255, 255), Font = Enum.Font.Gotham, TextSize = 12}, bundleSearchRow) addCorner(bundleInp, 6)
@@ -721,7 +671,7 @@ do
     local bundleResultsContainer = make("Frame", {Size = UDim2.new(1, -10, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1, LayoutOrder = 2}, vMoveSearch)
     make("UIListLayout", {SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 5)}, bundleResultsContainer)
 
-    local function renderMoveUI() end -- forward declaration
+    local function renderMoveUI() end 
     
     local function createBundleSearchRow(bundleId, bundleName)
         local Row = make("Frame", {Size = UDim2.new(1, 0, 0, 44), BackgroundColor3 = Color3.fromRGB(25, 25, 32)}, bundleResultsContainer) addCorner(Row, 6)
@@ -732,7 +682,6 @@ do
         local saveCatBtn = make("TextButton", {Size=UDim2.new(0.2, 0, 0, 28), Position=UDim2.new(0.78, 0, 0.5, -14), BackgroundColor3=Color3.fromRGB(40,120,200), Text="➕ Сохр.", TextColor3=Color3.fromRGB(255,255,255), Font=Enum.Font.GothamBold, TextSize=10}, Row) addCorner(saveCatBtn, 4)
 
         applyBtn.MouseButton1Click:Connect(function() applyBundle(bundleId, bundleName) end)
-        
         saveCatBtn.MouseButton1Click:Connect(function() 
             local exists = false
             for _, v in ipairs(customPacks) do if v.id == tostring(bundleId) then exists = true break end end
@@ -745,15 +694,11 @@ do
 
     bundleBtn.MouseButton1Click:Connect(function()
         for _, child in ipairs(bundleResultsContainer:GetChildren()) do if child:IsA("Frame") then child:Destroy() end end
-        local q = bundleInp.Text
-        if q == "" then return end
+        local q = bundleInp.Text if q == "" then return end
         showNotice("Ищем паки анимаций...")
-
         task.spawn(function()
-            -- Метод 1: Прямой запрос к каталогу (самый точный для бандлов)
             local url = "https://catalog.roproxy.com/v1/search/items/details?Category=12&Subcategory=38&Limit=15&Keyword=" .. Http:UrlEncode(q)
             local s, r = pcall(function() return game:HttpGet(url) end)
-            
             if s and r then
                 local decoded = Http:JSONDecode(r)
                 if decoded and decoded.data and #decoded.data > 0 then
@@ -762,8 +707,6 @@ do
                     return
                 end
             end
-            
-            -- Метод 2 (Резервный): Запрос через движок игры
             showNotice("Пробуем запасной метод поиска...")
             local s2, r2 = pcall(function()
                 local searchParams = CatalogSearchParams.new()
@@ -782,7 +725,6 @@ do
         end)
     end)
 
-    -- СОХРАНЕННЫЕ ПАКИ И НАСТРОЙКИ
     make("UIListLayout", {SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 8)}, vMoveSaved)
     CreateButton(vMoveSaved, "Сбросить анимацию (Ресет)", function() mySetts.selectedPackData = nil saveData() showNotice("Сброшено! Ресетнись.") end, Color3.fromRGB(180, 50, 50), 1)
 
@@ -911,33 +853,6 @@ do
         else showNotice("⚠️ Шериф не найден!") end
     end)
 
-    CreateLabel(vMm2, "Утилиты (Hitboxes)")
-
-    CreateToggleWithBind(vMm2, "Увеличенные Хитбоксы врагов (10x10)", false, false, function(state)
-        expandHitboxes = state
-        if not expandHitboxes then
-            for _, p in ipairs(Players:GetPlayers()) do
-                if p ~= player and p.Character then
-                    local hrp = p.Character:FindFirstChild("HumanoidRootPart")
-                    if hrp and hrp.Size.X > 5 then
-                        hrp.Size = Vector3.new(2, 2, 1) hrp.Transparency = 1 hrp.CanCollide = true
-                    end
-                end
-            end
-        end
-    end)
-
-    RS.Stepped:Connect(function()
-        if expandHitboxes then
-            for _, p in ipairs(Players:GetPlayers()) do
-                if p ~= player and p.Character then
-                    local hrp = p.Character:FindFirstChild("HumanoidRootPart")
-                    if hrp then hrp.Size = Vector3.new(10, 10, 10) hrp.Transparency = 0.6 hrp.CanCollide = false end
-                end
-            end
-        end
-    end)
-
     CreateLabel(vMm2, "Визуал ESP")
     CreateToggleWithBind(vMm2, "Role ESP", false, false, function(state)
         isRoleEsp = state
@@ -960,9 +875,7 @@ do
 
     CreateToggleWithBind(vMm2, "Автоподбор пистолета", false, false, function(state) isAutoGrab = state end)
 
-    CreateLabel(vMm2, "Aimbot")
-    CreateToggleWithBind(vMm2, "Silent Aim / CamLock (ПКМ)", false, false, function(state) isCamAimbot = state end)
-
+    CreateLabel(vMm2, "Визуал Прицела")
     local isCrosshair = false
     local customCrosshair = make("Frame", {Size = UDim2.new(0, 6, 0, 6), AnchorPoint = Vector2.new(0.5, 0.5), BackgroundColor3 = Color3.fromRGB(255, 255, 255), ZIndex = 100000, Visible = false}, sgui) addCorner(customCrosshair, 4) addStroke(customCrosshair, Color3.fromRGB(0, 0, 0), 1)
 
@@ -1024,29 +937,8 @@ do
         end
     end)
 
-    RS:BindToRenderStep("KutomCamLock", 201, function()
+    RS.RenderStepped:Connect(function()
         pcall(function()
-            local char = player.Character
-            local hrp = char and char:FindFirstChild("HumanoidRootPart")
-            local hasGun = char and (char:FindFirstChild("Gun") or char:FindFirstChild("Revolver"))
-            
-            if isCamAimbot and isAiming and hasGun then
-                local murdChar = nil
-                for _, p in ipairs(Players:GetPlayers()) do
-                    if p ~= player and p.Character and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
-                        local role, _ = getRoleInfo(p) if role == "MURDERER" then murdChar = p.Character break end
-                    end
-                end
-                if murdChar then
-                    local targetPart = murdChar:FindFirstChild("Torso") or murdChar:FindFirstChild("UpperTorso")
-                    if targetPart and targetPart.Parent and hrp and char.Parent then
-                        local cam = workspace.CurrentCamera
-                        cam.CFrame = CFrame.lookAt(cam.CFrame.Position, targetPart.Position)
-                        hrp.CFrame = CFrame.lookAt(hrp.Position, Vector3.new(targetPart.Position.X, hrp.Position.Y, targetPart.Position.Z)) 
-                    end
-                end
-            end
-
             if isCrosshair then
                 UIS.MouseIconEnabled = false
                 customCrosshair.Visible = true
@@ -1057,7 +949,6 @@ do
         end)
     end)
 
-    local gunSearchTick = 0
     task.spawn(function()
         while task.wait(0.05) do
             pcall(function()
@@ -1332,25 +1223,6 @@ do
         end
     end)
 
-    local isFullbright = false
-    local origAmbient = Lighting.Ambient
-    local origOutdoorAmbient = Lighting.OutdoorAmbient
-    local origBrightness = Lighting.Brightness
-    local origClockTime = Lighting.ClockTime
-    local origFogEnd = Lighting.FogEnd
-    local origGlobalShadows = Lighting.GlobalShadows
-
-    CreateToggleWithBind(vVip, "☀️ Fullbright (Яркий свет)", "VIP_Fullbright", false, function(state)
-        isFullbright = state
-        if isFullbright then
-            Lighting.Ambient = Color3.fromRGB(255, 255, 255) Lighting.OutdoorAmbient = Color3.fromRGB(255, 255, 255)
-            Lighting.Brightness = 2 Lighting.ClockTime = 14 Lighting.FogEnd = 100000 Lighting.GlobalShadows = false
-        else
-            Lighting.Ambient = origAmbient Lighting.OutdoorAmbient = origOutdoorAmbient
-            Lighting.Brightness = origBrightness Lighting.ClockTime = origClockTime Lighting.FogEnd = origFogEnd Lighting.GlobalShadows = origGlobalShadows
-        end
-    end)
-
     local isFreecam = false
     local fcPart = nil
     local fcConn = nil
@@ -1393,7 +1265,7 @@ end
 
 -- ================== 5. ПРОЧЕЕ ==================
 do
-    CreateLabel(vOther, "Утилиты")
+    CreateLabel(vOther, "Утилиты", 0)
     
     local fResetCont = make("Frame", {Size = UDim2.new(1, -10, 0, 34), BackgroundTransparency = 1, LayoutOrder = 1}, vOther)
     local fastResetBtn = make("TextButton", {Size = UDim2.new(1, -50, 1, 0), BackgroundColor3 = Color3.fromRGB(180, 50, 50), TextColor3 = Color3.fromRGB(255, 255, 255), Text = "💀 Быстрый Ресет (Возврат)", Font = Enum.Font.GothamBold, TextSize = 12}, fResetCont) addCorner(fastResetBtn, 6)
@@ -1412,11 +1284,65 @@ do
     end
     fastResetBtn.MouseButton1Click:Connect(doFastReset)
 
-    CreateLabel(vOther, "Маршрутный Тестер (Auto-Walk)")
+    -- BHOP
+    CreateLabel(vOther, "Модификаторы Движения", 2)
+    local isBhop = false
+    local currentBhopSpeed = 16
+    local timeOnGround = 0
+
+    CreateToggleWithBind(vOther, "🐰 Bhop (Ускорение при прыжках)", "Other_Bhop", false, function(state)
+        isBhop = state
+        if not isBhop and player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
+            player.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = mySetts.targetSpeed or 16
+        end
+    end, 3)
+
+    RS.RenderStepped:Connect(function(dt)
+        if isBhop then
+            local char = player.Character
+            local hum = char and char:FindFirstChildOfClass("Humanoid")
+            local hrp = char and char:FindFirstChild("HumanoidRootPart")
+            if hum and hrp and hum.Health > 0 then
+                local inAir = (hum:GetState() == Enum.HumanoidStateType.Freefall or hum:GetState() == Enum.HumanoidStateType.Jumping)
+                local isMoving = hum.MoveDirection.Magnitude > 0
+                local baseSpeed = mySetts.targetSpeed or 16
+
+                if not inAir then
+                    timeOnGround = timeOnGround + dt
+                    if timeOnGround > 0.15 then
+                        currentBhopSpeed = baseSpeed
+                    end
+                    if isMoving and UIS:IsKeyDown(Enum.KeyCode.Space) then
+                        hum:ChangeState(Enum.HumanoidStateType.Jumping)
+                        currentBhopSpeed = math.min(100, currentBhopSpeed + 8)
+                        timeOnGround = 0
+                    end
+                else
+                    timeOnGround = 0
+                end
+                
+                if not isMoving then
+                    currentBhopSpeed = baseSpeed
+                end
+                
+                hum.WalkSpeed = currentBhopSpeed
+
+                -- МОМЕНТАЛЬНЫЙ СТРЕЙФ В ВОЗДУХЕ (Как в CS:GO)
+                if isMoving and inAir then
+                    local dir = hum.MoveDirection
+                    local flatVel = dir * currentBhopSpeed
+                    hrp.Velocity = Vector3.new(flatVel.X, hrp.Velocity.Y, flatVel.Z)
+                end
+            end
+        end
+    end)
+
+    CreateLabel(vOther, "Маршрутный Тестер (Auto-Walk)", 4)
     local rtPointsContainer = Instance.new("Frame")
     rtPointsContainer.Size = UDim2.new(1, 0, 0, 0)
     rtPointsContainer.AutomaticSize = Enum.AutomaticSize.Y
     rtPointsContainer.BackgroundTransparency = 1
+    rtPointsContainer.LayoutOrder = 5
     rtPointsContainer.Parent = vOther
     make("UIListLayout", {Padding = UDim.new(0, 5), SortOrder = Enum.SortOrder.LayoutOrder}, rtPointsContainer)
 
@@ -1448,9 +1374,9 @@ do
     end
     createPointRow() createPointRow()
 
-    CreateButton(vOther, "+ Добавить точку", createPointRow, Color3.fromRGB(40, 120, 200))
-    local rtSpeedInp = CreateTextBox(vOther, "Время пути между точками (сек)", "2")
-    CreateToggleWithBind(vOther, "Зациклить маршрут", "Other_LoopRoute", false, function(state) rtIsLooping = state end)
+    CreateButton(vOther, "+ Добавить точку", createPointRow, Color3.fromRGB(40, 120, 200), 6)
+    local rtSpeedInp = CreateTextBox(vOther, "Время пути между точками (сек)", "2", 7)
+    CreateToggleWithBind(vOther, "Зациклить маршрут", "Other_LoopRoute", false, function(state) rtIsLooping = state end, 8)
 
     CreateButton(vOther, "▶ ЗАПУСТИТЬ / СТОП МАРШРУТ", function()
         if rtIsMoving then
@@ -1484,12 +1410,12 @@ do
             end
             showNotice("Маршрут завершен.")
         end)
-    end, Color3.fromRGB(40, 160, 60))
+    end, Color3.fromRGB(40, 160, 60), 9)
 end
 
 -- ================== 6. НАСТРОЙКИ И КОНФИГИ ==================
 do
-    CreateLabel(vSetts, "Конфиг (Файлы)")
+    CreateLabel(vSetts, "Конфиг (Файлы)", 1)
     CreateActionRow(vSetts, "Имя конфига...", "💾 Сохранить", function(val)
         if val ~= "" and writefile then
             pcall(function() writefile(val..".json", Http:JSONEncode({customAnims=customAnims, customPacks=customPacks, binds=binds, mySetts=mySetts, mm2Tracks=mm2Tracks})) end) showNotice("Конфиг "..val.." сохранен!")
@@ -1507,7 +1433,7 @@ do
         else showNotice("⚠️ Конфиг не найден!") end
     end)
 
-    CreateLabel(vSetts, "Управление Сервером")
+    CreateLabel(vSetts, "Управление Сервером", 3)
     CreateButton(vSetts, "🔄 Перезайти на сервер (Rejoin)", function()
         showNotice("Переподключение...")
         if #game:GetService("Players"):GetPlayers() <= 1 then
@@ -1515,7 +1441,7 @@ do
         else
             TPS:TeleportToPlaceInstance(game.PlaceId, game.JobId, player)
         end
-    end, Color3.fromRGB(180, 100, 40))
+    end, Color3.fromRGB(180, 100, 40), 4)
 
     CreateButton(vSetts, "🌐 Сменить сервер (Server Hop)", function()
         showNotice("Поиск нового сервера...")
@@ -1535,14 +1461,56 @@ do
             if #servers > 0 then TPS:TeleportToPlaceInstance(game.PlaceId, servers[math.random(1, #servers)], player)
             else showNotice("Не удалось найти другой сервер!") end
         end)
-    end, Color3.fromRGB(150, 50, 200))
+    end, Color3.fromRGB(150, 50, 200), 5)
+
+    CreateLabel(vSetts, "Визуал (Окружение)", 11)
+    
+    local origAmbient = Lighting.Ambient
+    local origOutdoorAmbient = Lighting.OutdoorAmbient
+    local origBrightness = Lighting.Brightness
+    local origClockTime = Lighting.ClockTime
+    local origFogEnd = Lighting.FogEnd
+    local origGlobalShadows = Lighting.GlobalShadows
+
+    CreateToggleWithBind(vSetts, "☀️ Fullbright (Яркий свет)", "Setts_Fullbright", false, function(state)
+        if state then
+            Lighting.Ambient = Color3.fromRGB(255, 255, 255) Lighting.OutdoorAmbient = Color3.fromRGB(255, 255, 255)
+            Lighting.Brightness = 2 Lighting.ClockTime = 14 Lighting.FogEnd = 100000 Lighting.GlobalShadows = false
+        else
+            Lighting.Ambient = origAmbient Lighting.OutdoorAmbient = origOutdoorAmbient
+            Lighting.Brightness = origBrightness Lighting.ClockTime = origClockTime Lighting.FogEnd = origFogEnd Lighting.GlobalShadows = origGlobalShadows
+        end
+    end, 12)
+
+    CreateToggleWithBind(vSetts, "🌌 Ночное небо (Night Sky)", "Setts_NightSky", false, function(state)
+        if state then
+            Lighting.ClockTime = 0
+            if not Lighting:FindFirstChild("KutomNightSky") then
+                local sky = Instance.new("Sky")
+                sky.Name = "KutomNightSky"
+                sky.SkyboxBk = "rbxassetid://1045964490"
+                sky.SkyboxDn = "rbxassetid://1045964368"
+                sky.SkyboxFt = "rbxassetid://1045964655"
+                sky.SkyboxLf = "rbxassetid://1045964655"
+                sky.SkyboxRt = "rbxassetid://1045964655"
+                sky.SkyboxUp = "rbxassetid://1045962969"
+                sky.StarCount = 3000
+                sky.Parent = Lighting
+            end
+        else
+            Lighting.ClockTime = 14
+            if Lighting:FindFirstChild("KutomNightSky") then
+                Lighting.KutomNightSky:Destroy()
+            end
+        end
+    end, 13)
 
     CreateToggleWithBind(vSetts, "✅ Радужный логотип", "Setts_Rainbow", mySetts.rainbow, function(state)
         mySetts.rainbow = state
         if not mySetts.rainbow then logoLabel.TextColor3 = Color3.fromRGB(220, 100, 60) end saveData()
-    end)
+    end, 14)
 
-    make("TextButton", {Size = UDim2.new(0, 90, 0, 25), BackgroundTransparency = 1, TextColor3 = Color3.fromRGB(65, 65, 80), Text = "By Kutom", Font = Enum.Font.GothamBold, TextSize = 11, TextXAlignment = Enum.TextXAlignment.Left, LayoutOrder = 10}, vSetts)
+    make("TextButton", {Size = UDim2.new(0, 90, 0, 25), BackgroundTransparency = 1, TextColor3 = Color3.fromRGB(65, 65, 80), Text = "By Kutom", Font = Enum.Font.GothamBold, TextSize = 11, TextXAlignment = Enum.TextXAlignment.Left, LayoutOrder = 15}, vSetts)
 end
 
 -- ГЛОБАЛЬНАЯ РАДУГА
