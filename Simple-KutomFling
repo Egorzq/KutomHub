@@ -1,0 +1,175 @@
+-- Ультрасовременный GUI с WalkFling
+local CoreGui = game:GetService("CoreGui")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+
+local LocalPlayer = Players.LocalPlayer
+
+-- Удаление старого GUI, если он есть
+if CoreGui:FindFirstChild("CyberWalkFlingGui") then
+    CoreGui.CyberWalkFlingGui:Destroy()
+end
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "CyberWalkFlingGui"
+ScreenGui.Parent = CoreGui
+ScreenGui.ResetOnSpawn = false
+
+-- Главный контейнер (Неоновый киберпанк стиль)
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Parent = ScreenGui
+MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
+MainFrame.BackgroundTransparency = 0.1
+MainFrame.Position = UDim2.new(0.5, -125, 0.5, -100)
+MainFrame.Size = UDim2.new(0, 250, 0, 200)
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.ClipsDescendants = true
+
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 16)
+MainCorner.Parent = MainFrame
+
+-- Неоновая обводка
+local UIStroke = Instance.new("UIStroke")
+UIStroke.Parent = MainFrame
+UIStroke.Color = Color3.fromRGB(0, 255, 200)
+UIStroke.Thickness = 2
+UIStroke.Transparency = 0.3
+
+-- Верхняя панель (Текстура заголовка)
+local TopBar = Instance.new("Frame")
+TopBar.Parent = MainFrame
+TopBar.BackgroundColor3 = Color3.fromRGB(25, 25, 40)
+TopBar.Size = UDim2.new(1, 0, 0, 40)
+
+local TopCorner = Instance.new("UICorner")
+TopCorner.CornerRadius = UDim.new(0, 16)
+TopCorner.Parent = TopBar
+
+local Title = Instance.new("TextLabel")
+Title.Parent = TopBar
+Title.BackgroundTransparency = 1
+Title.Position = UDim2.new(0, 15, 0, 0)
+Title.Size = UDim2.new(1, -50, 1, 0)
+Title.Font = Enum.Font.GothamBold
+Title.Text = "Simple kutomfling"
+Title.TextColor3 = Color3.fromRGB(0, 255, 200)
+Title.TextSize = 14
+Title.TextXAlignment = Enum.TextXAlignment.Left
+
+-- Кнопка закрытия
+local CloseButton = Instance.new("TextButton")
+CloseButton.Parent = TopBar
+CloseButton.BackgroundColor3 = Color3.fromRGB(255, 60, 90)
+CloseButton.Position = UDim2.new(1, -30, 0.5, -10)
+CloseButton.Size = UDim2.new(0, 20, 0, 20)
+CloseButton.Text = "X"
+CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseButton.TextSize = 12
+CloseButton.Font = Enum.Font.GothamBold
+
+local CloseCorner = Instance.new("UICorner")
+CloseCorner.CornerRadius = UDim.new(1, 0)
+CloseCorner.Parent = CloseButton
+
+-- Кнопка WalkFling
+local WalkFlingButton = Instance.new("TextButton")
+WalkFlingButton.Parent = MainFrame
+WalkFlingButton.BackgroundColor3 = Color3.fromRGB(25, 25, 40)
+WalkFlingButton.Position = UDim2.new(0.1, 0, 0.35, 0)
+WalkFlingButton.Size = UDim2.new(0, 200, 0, 50)
+WalkFlingButton.Font = Enum.Font.GothamBold
+WalkFlingButton.Text = "ВКЛЮЧИТЬ"
+WalkFlingButton.TextColor3 = Color3.fromRGB(0, 255, 200)
+WalkFlingButton.TextSize = 15
+WalkFlingButton.AutoButtonColor = false
+
+local ButtonCorner = Instance.new("UICorner")
+ButtonCorner.CornerRadius = UDim.new(0, 12)
+ButtonCorner.Parent = WalkFlingButton
+
+local ButtonStroke = Instance.new("UIStroke")
+ButtonStroke.Parent = WalkFlingButton
+ButtonStroke.Color = Color3.fromRGB(0, 255, 200)
+ButtonStroke.Thickness = 1.5
+
+-- Статус под кнопкой
+local StatusLabel = Instance.new("TextLabel")
+StatusLabel.Parent = MainFrame
+StatusLabel.BackgroundTransparency = 1
+StatusLabel.Position = UDim2.new(0, 0, 0.78, 0)
+StatusLabel.Size = UDim2.new(1, 0, 0, 20)
+StatusLabel.Font = Enum.Font.Gotham
+StatusLabel.Text = "Статус: Выключен"
+StatusLabel.TextColor3 = Color3.fromRGB(150, 150, 180)
+StatusLabel.TextSize = 12
+
+-- Логика закрытия
+CloseButton.MouseButton1Click:Connect(function()
+    local tween = TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.new(0, 0, 0, 0), BackgroundTransparency = 1})
+    tween:Play()
+    tween.Completed:Wait()
+    ScreenGui:Destroy()
+end)
+
+-- Логика WalkFling
+local walkflinging = false
+WalkFlingButton.MouseButton1Click:Connect(function()
+    walkflinging = not walkflinging
+    
+    if walkflinging then
+        StatusLabel.Text = "Статус: Активен"
+        StatusLabel.TextColor3 = Color3.fromRGB(0, 255, 100)
+        
+        TweenService:Create(WalkFlingButton, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(0, 255, 200)}):Play()
+        TweenService:Create(WalkFlingButton, TweenInfo.new(0.2), {TextColor3 = Color3.fromRGB(15, 15, 25)}):Play()
+        TweenService:Create(UIStroke, TweenInfo.new(0.2), {Color = Color3.fromRGB(0, 255, 100)}):Play()
+        
+        task.spawn(function()
+            for _, child in next, LocalPlayer.Character:GetDescendants() do
+                if child:IsA("BasePart") then
+                    child.CustomPhysicalProperties = PhysicalProperties.new(100, 0.3, 0.5)
+                    child.CanCollide = false
+                end
+            end
+            
+            while walkflinging do
+                RunService.Heartbeat:Wait()
+                local character = LocalPlayer.Character
+                local root = character and character:FindFirstChild("HumanoidRootPart")
+                if not (character and character.Parent and root and root.Parent) then continue end
+                
+                local vel = root.Velocity
+                root.Velocity = vel * 10000 + Vector3.new(0, 10000, 0)
+                RunService.RenderStepped:Wait()
+                if character and character.Parent and root and root.Parent then
+                    root.Velocity = vel
+                end
+                RunService.Stepped:Wait()
+                if character and character.Parent and root and root.Parent then
+                    root.Velocity = vel + Vector3.new(0, 0.1, 0)
+                end
+            end
+        end)
+    else
+        StatusLabel.Text = "Статус: Выключен"
+        StatusLabel.TextColor3 = Color3.fromRGB(150, 150, 180)
+        
+        TweenService:Create(WalkFlingButton, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(25, 25, 40)}):Play()
+        TweenService:Create(WalkFlingButton, TweenInfo.new(0.2), {TextColor3 = Color3.fromRGB(0, 255, 200)}):Play()
+        TweenService:Create(UIStroke, TweenInfo.new(0.2), {Color = Color3.fromRGB(0, 255, 200)}):Play()
+        
+        if LocalPlayer.Character then
+            for _, v in next, LocalPlayer.Character:GetDescendants() do
+                if v:IsA("BasePart") then
+                    v.CustomPhysicalProperties = PhysicalProperties.new(0.7, 0.3, 0.5)
+                    v.Velocity = Vector3.zero
+                    v.CanCollide = true
+                end
+            end
+        end
+    end
+end)
