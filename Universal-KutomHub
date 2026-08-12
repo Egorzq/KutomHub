@@ -24,6 +24,10 @@ local isRoleEsp = false
 local isGunEsp = false
 local isAutoGrab = false
 
+local isFling = false
+local flingTarget = nil
+local flingConn = nil
+local returnPosition = nil
 local isAntiFling = false
 
 -- Функция определения ролей
@@ -63,7 +67,7 @@ local mm2Tracks = {}
 local defaultSetts = {
     rainbow = true, targetSpeed = 16, targetJump = 50, flySpeed = 50,
     selectedPackData = nil, autoPlaySong = false, lastPlayedSongId = nil,
-    bhopMaxSpeed = 100
+    bhopMaxSpeed = 100, toggles = {}
 }
 local mySetts = {}
 for k, v in pairs(defaultSetts) do mySetts[k] = v end
@@ -246,7 +250,7 @@ local function CreateTextBox(page, placeholder, text, layoutOrder)
     addCorner(Box, 6) return Box
 end
 
--- ================== ЕДИНАЯ СИСТЕМА БИНДОВ ==================
+-- ================== ЕДИНАЯ СИСТЕМА БИНДОВ И АВТО-СОХРАНЕНИЯ ==================
 local isBindingLoc = false
 local bindIdLoc = nil
 local bindBtnLoc = nil
@@ -301,9 +305,20 @@ UIS.InputBegan:Connect(function(inp, gp)
     end
 end)
 
+-- МОДЕРНИЗИРОВАННЫЙ ПЕРЕКЛЮЧАТЕЛЬ С АВТОСОХРАНЕНИЕМ
 local function CreateToggleWithBind(page, text, bindId, initialState, callback, layoutOrder)
+    -- Инициализируем раздел в сохранении, если его нет
+    if not mySetts.toggles then mySetts.toggles = {} end
+    
+    -- Проверяем, сохранялось ли состояние этого переключателя ранее
+    local enabled = mySetts.toggles[text]
+    if enabled == nil then
+        enabled = initialState or false
+        mySetts.toggles[text] = enabled
+    end
+
     local Row = make("Frame", {Size = UDim2.new(1, -10, 0, 34), BackgroundTransparency = 1, LayoutOrder = layoutOrder or 0}, page)
-    local ToggleBtn = make("TextButton", {Size = UDim2.new(1, bindId and -50 or 0, 1, 0), BackgroundColor3 = initialState and Color3.fromRGB(40, 160, 60) or Color3.fromRGB(25, 25, 32), Text = text .. (initialState and ": ВКЛ" or ": ВЫКЛ"), TextColor3 = Color3.fromRGB(220, 220, 220), Font = Enum.Font.GothamBold, TextSize = 12}, Row)
+    local ToggleBtn = make("TextButton", {Size = UDim2.new(1, bindId and -50 or 0, 1, 0), BackgroundColor3 = enabled and Color3.fromRGB(40, 160, 60) or Color3.fromRGB(25, 25, 32), Text = text .. (enabled and ": ВКЛ" or ": ВЫКЛ"), TextColor3 = Color3.fromRGB(220, 220, 220), Font = Enum.Font.GothamBold, TextSize = 12}, Row)
     addCorner(ToggleBtn, 6)
     
     local BindBtn = nil
@@ -314,15 +329,18 @@ local function CreateToggleWithBind(page, text, bindId, initialState, callback, 
         if k then BindBtn.Text = "["..k.."]" BindBtn.TextColor3 = Color3.fromRGB(150, 255, 150) end
     end
 
-    local enabled = initialState or false
     local isLocalBinding = false
 
     local function SetState(state) 
         enabled = state 
+        mySetts.toggles[text] = enabled -- Сохраняем стейт в настройки
+        saveData() -- Обновляем файл
+        
         ToggleBtn.Text = text .. (enabled and ": ВКЛ" or ": ВЫКЛ")
         tween(ToggleBtn, 0.2, {BackgroundColor3 = enabled and Color3.fromRGB(40, 160, 60) or Color3.fromRGB(25, 25, 32)})
         callback(enabled) 
     end
+    
     ToggleBtn.MouseButton1Click:Connect(function() SetState(not enabled) end)
     
     if BindBtn then
@@ -350,6 +368,10 @@ local function CreateToggleWithBind(page, text, bindId, initialState, callback, 
             end
         end)
     end
+    
+    -- Вызываем функцию при запуске скрипта для автоматического применения сохраненного эффекта
+    task.spawn(function() callback(enabled) end)
+    
     return SetState
 end
 
