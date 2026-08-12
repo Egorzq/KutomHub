@@ -24,10 +24,6 @@ local isRoleEsp = false
 local isGunEsp = false
 local isAutoGrab = false
 
-local isFling = false
-local flingTarget = nil
-local flingConn = nil
-local returnPosition = nil
 local isAntiFling = false
 
 -- Функция определения ролей
@@ -66,8 +62,8 @@ local mm2Tracks = {}
 
 local defaultSetts = {
     rainbow = true, targetSpeed = 16, targetJump = 50, flySpeed = 50,
-    selectedPackName = nil, selectedPackData = nil,
-    autoPlaySong = false, lastPlayedSongId = nil
+    selectedPackData = nil, autoPlaySong = false, lastPlayedSongId = nil,
+    bhopMaxSpeed = 100
 }
 local mySetts = {}
 for k, v in pairs(defaultSetts) do mySetts[k] = v end
@@ -371,64 +367,7 @@ local function CreateActionRow(page, inputHolder, btn1Txt, btn1Cb, btn2Txt, btn2
     end
 end
 
--- ================== УНИВЕРСАЛЬНЫЙ ФЛИНГ ==================
-local setAntiFlingState
-
-local function stopFling()
-    isFling = false flingTarget = nil
-    if flingConn then flingConn:Disconnect() flingConn = nil end
-    pcall(function()
-        local char = player.Character
-        local hrp = char and char:FindFirstChild("HumanoidRootPart")
-        local hum = char and char:FindFirstChildOfClass("Humanoid")
-        if hrp then 
-            hrp.Velocity = Vector3.zero hrp.RotVelocity = Vector3.zero 
-            if hrp:FindFirstChild("KutomFling") then hrp.KutomFling:Destroy() end
-            if returnPosition then hrp.CFrame = returnPosition returnPosition = nil end
-            for _, v in ipairs(char:GetDescendants()) do if v:IsA("BasePart") then v.CanCollide = true end end
-        end
-        if hum then hum.PlatformStand = false end
-    end)
-end
-
-local function startFling(t)
-    if not t or not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then return end
-    stopFling()
-    
-    returnPosition = player.Character.HumanoidRootPart.CFrame
-    flingTarget = t
-    isFling = true
-    
-    if not isAntiFling and setAntiFlingState then setAntiFlingState(true) end
-
-    player.Character:FindFirstChildOfClass("Humanoid").PlatformStand = true
-    local spin = Instance.new("BodyAngularVelocity", player.Character.HumanoidRootPart)
-    spin.Name = "KutomFling" spin.AngularVelocity = Vector3.new(0, 99999, 0) spin.MaxTorque = Vector3.new(0, math.huge, 0) spin.P = math.huge
-    
-    flingConn = RS.Stepped:Connect(function()
-        if not isFling or not flingTarget or not player.Character or not player.Character.Parent then return end
-        pcall(function()
-            local tChar = flingTarget.Character
-            local tHrp = tChar and (tChar:FindFirstChild("Torso") or tChar:FindFirstChild("UpperTorso") or tChar:FindFirstChild("HumanoidRootPart"))
-            local hrp = player.Character:FindFirstChild("HumanoidRootPart")
-            local tHum = tChar and tChar:FindFirstChildOfClass("Humanoid")
-            
-            if hrp and tHrp and tHum and tHum.Health > 0 then
-                for _, v in ipairs(player.Character:GetChildren()) do if v:IsA("BasePart") and v.Name ~= "HumanoidRootPart" then v.CanCollide = false end end
-                hrp.CanCollide = true 
-                -- Агрессивный физический импульс
-                hrp.Velocity = Vector3.new(math.random(-100, 100), 10000, math.random(-100, 100)) 
-                hrp.RotVelocity = Vector3.new(20000, 20000, 20000) 
-                hrp.CFrame = tHrp.CFrame * CFrame.new(math.random(-1,1), math.random(-1,1), math.random(-1,1))
-            else
-                showNotice("✅ Цель устранена или вышла!")
-                stopFling()
-            end
-        end)
-    end)
-end
-
--- ================== 1. ЭМОЦИИ (ТОЛЬКО КАСТОМНЫЕ) ==================
+-- ================== 1. ЭМОЦИИ ==================
 do
     local EmotesTop = make("Frame", {Size = UDim2.new(1, -10, 0, 30), BackgroundTransparency = 1}, vEmotes)
     local btnTabSearch = make("TextButton", {Size = UDim2.new(0.5, -5, 1, 0), BackgroundColor3 = Color3.fromRGB(40, 120, 200), Text = "🔍 Поиск", TextColor3 = Color3.fromRGB(255,255,255), Font = Enum.Font.GothamBold, TextSize = 12}, EmotesTop) addCorner(btnTabSearch, 6)
@@ -448,7 +387,6 @@ do
         tween(btnTabSearch, 0.2, {BackgroundColor3 = Color3.fromRGB(25, 25, 32), TextColor3 = Color3.fromRGB(200,200,200)})
     end)
 
-    -- ФУНКЦИИ ВОСПРОИЗВЕДЕНИЯ
     local isLoopAnim = true
     playAnim = function(id)
         local char = player.Character if not char then return end 
@@ -555,7 +493,7 @@ do
     local emotesContainer = make("Frame", {Size = UDim2.new(1,-10,0,0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1, LayoutOrder = 3}, vEmotesSaved)
     make("UIListLayout", {SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 5)}, emotesContainer)
 
-    local function createEmoteRow(name, id, isCust)
+    local function createEmoteRow(name, id)
         local Row = make("Frame", {Size = UDim2.new(1, 0, 0, 35), BackgroundTransparency = 1}, emotesContainer)
         local PlayBtn = make("TextButton", {Size = UDim2.new(1, -85, 1, 0), BackgroundColor3 = Color3.fromRGB(40, 40, 48), Text = "⭐ " .. name, TextColor3 = Color3.fromRGB(220, 220, 220), Font = Enum.Font.GothamSemibold, TextSize = 13}, Row) addCorner(PlayBtn, 6)
         local BindBtn = make("TextButton", {Size = UDim2.new(0, 35, 1, 0), Position = UDim2.new(1, -80, 0, 0), BackgroundColor3 = Color3.fromRGB(60, 60, 70), Font = Enum.Font.GothamBold, TextSize = 11}, Row) addCorner(BindBtn, 6)
@@ -572,7 +510,7 @@ do
 
     renderEmotesUI = function()
         for _, child in ipairs(emotesContainer:GetChildren()) do if child:IsA("Frame") then child:Destroy() end end
-        for _, v in ipairs(customAnims) do createEmoteRow(v.name, v.id, true) end
+        for _, v in ipairs(customAnims) do createEmoteRow(v.name, v.id) end
     end
     renderEmotesUI()
 
@@ -591,7 +529,7 @@ do
     end, Color3.fromRGB(40, 120, 200), 7)
 end
 
--- ================== 2. ДВИЖЕНИЯ (ТОЛЬКО КАСТОМНЫЕ) ==================
+-- ================== 2. ДВИЖЕНИЯ ==================
 do
     local MoveTop = make("Frame", {Size = UDim2.new(1, -10, 0, 30), BackgroundTransparency = 1}, vMove)
     local btnMoveSearch = make("TextButton", {Size = UDim2.new(0.5, -5, 1, 0), BackgroundColor3 = Color3.fromRGB(40, 120, 200), Text = "🔍 Поиск Паков", TextColor3 = Color3.fromRGB(255,255,255), Font = Enum.Font.GothamBold, TextSize = 12}, MoveTop) addCorner(btnMoveSearch, 6)
@@ -698,17 +636,6 @@ do
         local q = bundleInp.Text if q == "" then return end
         showNotice("Ищем паки анимаций...")
         task.spawn(function()
-            local url = "https://catalog.roproxy.com/v1/search/items/details?Category=12&Subcategory=38&Limit=15&Keyword=" .. Http:UrlEncode(q)
-            local s, r = pcall(function() return game:HttpGet(url) end)
-            if s and r then
-                local decoded = Http:JSONDecode(r)
-                if decoded and decoded.data and #decoded.data > 0 then
-                    showNotice("Найдено результатов: " .. #decoded.data)
-                    for _, item in ipairs(decoded.data) do createBundleSearchRow(item.id, item.name) end
-                    return
-                end
-            end
-            showNotice("Пробуем запасной метод поиска...")
             local s2, r2 = pcall(function()
                 local searchParams = CatalogSearchParams.new()
                 searchParams.SearchKeyword = q
@@ -722,7 +649,7 @@ do
                     showNotice("Найдено результатов: " .. #items)
                     for _, item in ipairs(items) do createBundleSearchRow(item.Id, item.Name) end
                 else showNotice("Паки по этому запросу не найдены!") end
-            else showNotice("Все методы поиска заблокированы Роблоксом!") end
+            else showNotice("Сбой поиска!") end
         end)
     end)
 
@@ -732,7 +659,7 @@ do
     local packsContainer = make("Frame", {Size = UDim2.new(1,-10,0,0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1, LayoutOrder = 2}, vMoveSaved)
     make("UIListLayout", {SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 5)}, packsContainer)
 
-    local function createPackRow(name, bundleId, isCust, manualData)
+    local function createPackRow(name, bundleId, manualData)
         local Row = make("Frame", {Size = UDim2.new(1, 0, 0, 35), BackgroundTransparency = 1}, packsContainer)
         local PlayBtn = make("TextButton", {Size = UDim2.new(1, -45, 1, 0), BackgroundColor3 = Color3.fromRGB(40, 40, 48), Text = "⭐ " .. name, TextColor3 = Color3.fromRGB(220, 220, 220), Font = Enum.Font.GothamSemibold, TextSize = 13}, Row) addCorner(PlayBtn, 6)
 
@@ -754,7 +681,7 @@ do
 
     renderMoveUI = function()
         for _, child in ipairs(packsContainer:GetChildren()) do if child:IsA("Frame") then child:Destroy() end end
-        for _, v in ipairs(customPacks) do createPackRow(v.name, v.id, true, v.isManual and v.data or nil) end
+        for _, v in ipairs(customPacks) do createPackRow(v.name, v.id, v.isManual and v.data or nil) end
     end
     renderMoveUI()
 
@@ -784,12 +711,9 @@ do
         mName.Text = "" mI.Text = "" mW.Text = "" mR.Text = "" mJ.Text = "" mF.Text = ""
     end)
 
-    -- АВТО-ПРИМЕНЕНИЕ ДЛЯ ТЕКУЩЕГО ПЕРСОНАЖА ПРИ ЗАПУСКЕ СКРИПТА
     if player.Character and player.Character:FindFirstChild("Humanoid") then
         if mySetts.selectedPackData then
-            task.delay(0.5, function()
-                applyMove(unpack(mySetts.selectedPackData))
-            end)
+            task.delay(0.5, function() applyMove(unpack(mySetts.selectedPackData)) end)
         end
     end
 
@@ -811,31 +735,8 @@ end
 
 -- ================== 3. MM2 ЧИТЫ И ТРЕКИ ==================
 do
-    CreateLabel(vMm2, "Маньяк и Шериф (Fling / ТП)")
-    local mm2FlingCont = make("Frame", {Size = UDim2.new(1, -10, 0, 35), BackgroundTransparency = 1}, vMm2)
-    local btnFlingM = make("TextButton", {Size = UDim2.new(0.48, 0, 1, 0), BackgroundColor3 = Color3.fromRGB(180, 50, 180), Text = "Fling Маньяка", TextColor3 = Color3.fromRGB(255,255,255), Font = Enum.Font.GothamBold, TextSize = 12}, mm2FlingCont) addCorner(btnFlingM, 6)
-    local btnFlingS = make("TextButton", {Size = UDim2.new(0.48, 0, 1, 0), Position = UDim2.new(0.52, 0, 0, 0), BackgroundColor3 = Color3.fromRGB(50, 100, 180), Text = "Fling Шерифа", TextColor3 = Color3.fromRGB(255,255,255), Font = Enum.Font.GothamBold, TextSize = 12}, mm2FlingCont) addCorner(btnFlingS, 6)
-
-    btnFlingM.MouseButton1Click:Connect(function()
-        local t = nil
-        for _, p in ipairs(Players:GetPlayers()) do
-            if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
-                local r, _ = getRoleInfo(p) if r == "MURDERER" then t = p break end
-            end
-        end
-        if t then startFling(t) showNotice("Fling Маньяка!") else showNotice("⚠️ Маньяк не найден!") end
-    end)
-
-    btnFlingS.MouseButton1Click:Connect(function()
-        local t = nil
-        for _, p in ipairs(Players:GetPlayers()) do
-            if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
-                local r, _ = getRoleInfo(p) if r == "SHERIFF" then t = p break end
-            end
-        end
-        if t then startFling(t) showNotice("Fling Шерифа!") else showNotice("⚠️ Шериф не найден!") end
-    end)
-
+    CreateLabel(vMm2, "Маньяк и Шериф (ТП)")
+    
     local mm2Tps = make("Frame", {Size = UDim2.new(1, -10, 0, 35), BackgroundTransparency = 1}, vMm2)
     local btnM = make("TextButton", {Size = UDim2.new(0.48, 0, 1, 0), BackgroundColor3 = Color3.fromRGB(180, 50, 50), Text = "ТП к Маньяку", TextColor3 = Color3.fromRGB(255,255,255), Font = Enum.Font.GothamBold, TextSize = 12}, mm2Tps) addCorner(btnM, 6)
     local btnS = make("TextButton", {Size = UDim2.new(0.48, 0, 1, 0), Position = UDim2.new(0.52, 0, 0, 0), BackgroundColor3 = Color3.fromRGB(50, 100, 180), Text = "ТП к Шерифу", TextColor3 = Color3.fromRGB(255,255,255), Font = Enum.Font.GothamBold, TextSize = 12}, mm2Tps) addCorner(btnS, 6)
@@ -884,6 +785,15 @@ do
     end)
 
     CreateToggleWithBind(vMm2, "Автоподбор пистолета", false, false, function(state) isAutoGrab = state end)
+
+    CreateLabel(vMm2, "Визуал Прицела")
+    local isCrosshair = false
+    local customCrosshair = make("Frame", {Size = UDim2.new(0, 6, 0, 6), AnchorPoint = Vector2.new(0.5, 0.5), BackgroundColor3 = Color3.fromRGB(255, 255, 255), ZIndex = 100000, Visible = false}, sgui) addCorner(customCrosshair, 4) addStroke(customCrosshair, Color3.fromRGB(0, 0, 0), 1)
+
+    CreateToggleWithBind(vMm2, "Радужный прицел", false, false, function(state)
+        isCrosshair = state
+        if not isCrosshair then UIS.MouseIconEnabled = true customCrosshair.Visible = false end
+    end)
 
     CreateLabel(vMm2, "Менеджер Треков (Радио)")
     local mm2TrackScroll = make("ScrollingFrame", {Size = UDim2.new(1, -10, 0, 180), BackgroundColor3 = Color3.fromRGB(20, 20, 26), BorderSizePixel = 0, ScrollBarThickness = 3, AutomaticCanvasSize = Enum.AutomaticSize.Y, CanvasSize = UDim2.new(0,0,0,0)}, vMm2)
@@ -936,6 +846,18 @@ do
                 end
             end)
         end
+    end)
+
+    RS.RenderStepped:Connect(function()
+        pcall(function()
+            if isCrosshair then
+                UIS.MouseIconEnabled = false
+                customCrosshair.Visible = true
+                local msLoc = UIS:GetMouseLocation()
+                customCrosshair.Position = UDim2.new(0, msLoc.X, 0, msLoc.Y)
+                customCrosshair.BackgroundColor3 = Color3.fromHSV((tick() % 2) / 2, 1, 1)
+            end
+        end)
     end)
 
     task.spawn(function()
@@ -1046,7 +968,7 @@ do
         end return nil
     end
 
-    CreateLabel(vVip, "Статы Игрока")
+    CreateLabel(vVip, "Статы Игрока", 1)
     CreateActionRow(vVip, "Скорость (16)", "Применить Скор.", function(val)
         local n = tonumber(val) if n and player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
             player.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = n mySetts.targetSpeed = n saveData() showNotice("Скорость: " .. n)
@@ -1064,13 +986,7 @@ do
         mySetts.targetJump = 50 saveData() if player.Character and player.Character:FindFirstChildOfClass("Humanoid") then player.Character:FindFirstChildOfClass("Humanoid").UseJumpPower = true player.Character:FindFirstChildOfClass("Humanoid").JumpPower = 50 end
     end)
 
-    CreateActionRow(vVip, "Скор. полета (50)", "Установить Полет", function(val)
-        local n = tonumber(val) if n then mySetts.flySpeed = n saveData() showNotice("Скор. полета изменена!") end
-    end, "Сброс", function()
-        mySetts.flySpeed = 50 saveData() showNotice("Скор. полета сброшена!")
-    end)
-
-    CreateLabel(vVip, "Чит-моды")
+    CreateLabel(vVip, "Чит-моды", 4)
 
     local flyBindCont = make("Frame", {Size = UDim2.new(1, -10, 0, 34), BackgroundTransparency = 1, LayoutOrder = 5}, vVip)
     local flyBtnObj = make("TextButton", {Size = UDim2.new(1, -50, 1, 0), BackgroundColor3 = Color3.fromRGB(40, 120, 200), TextColor3 = Color3.fromRGB(255, 255, 255), Text = "Полет", Font = Enum.Font.GothamBold, TextSize = 12}, flyBindCont) addCorner(flyBtnObj, 6)
@@ -1087,51 +1003,6 @@ do
         end
     end)
 
-    local isTouchFling = false
-    local touchFlingSpin = nil
-    CreateToggleWithBind(vVip, "💫 Touch Fling (Касание = Космос)", false, false, function(state)
-        isTouchFling = state
-        local char = player.Character
-        if isTouchFling then
-            if char and char:FindFirstChild("HumanoidRootPart") then
-                touchFlingSpin = Instance.new("BodyAngularVelocity")
-                touchFlingSpin.Name = "TouchFlingSpin"
-                touchFlingSpin.AngularVelocity = Vector3.new(0, 99999, 0)
-                touchFlingSpin.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
-                touchFlingSpin.P = math.huge
-                touchFlingSpin.Parent = char.HumanoidRootPart
-                local hum = char:FindFirstChildOfClass("Humanoid")
-                if hum then hum.PlatformStand = true end
-            end
-        else
-            if char and char:FindFirstChild("HumanoidRootPart") then
-                local s = char.HumanoidRootPart:FindFirstChild("TouchFlingSpin")
-                if s then s:Destroy() end
-                local hum = char:FindFirstChildOfClass("Humanoid")
-                if hum then hum.PlatformStand = false end
-                char.HumanoidRootPart.Velocity = Vector3.zero
-                char.HumanoidRootPart.RotVelocity = Vector3.zero
-            end
-        end
-    end)
-
-    player.CharacterAdded:Connect(function(char)
-        if isTouchFling then
-            task.delay(1, function()
-                if isTouchFling and char:FindFirstChild("HumanoidRootPart") then
-                    touchFlingSpin = Instance.new("BodyAngularVelocity")
-                    touchFlingSpin.Name = "TouchFlingSpin"
-                    touchFlingSpin.AngularVelocity = Vector3.new(0, 99999, 0)
-                    touchFlingSpin.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
-                    touchFlingSpin.P = math.huge
-                    touchFlingSpin.Parent = char.HumanoidRootPart
-                    local hum = char:FindFirstChildOfClass("Humanoid")
-                    if hum then hum.PlatformStand = true end
-                end
-            end)
-        end
-    end)
-
     local noclipConn
     CreateToggleWithBind(vVip, "Noclip", false, false, function(state)
         if state then
@@ -1143,10 +1014,10 @@ do
         else
             if noclipConn then noclipConn:Disconnect() noclipConn = nil end
         end
-    end)
+    end, 6)
 
     local isInfJump = false
-    CreateToggleWithBind(vVip, "Бесконечный прыжок", false, false, function(state) isInfJump = state end)
+    CreateToggleWithBind(vVip, "Бесконечный прыжок", false, false, function(state) isInfJump = state end, 7)
     UIS.JumpRequest:Connect(function() 
         if isInfJump and player.Character then local h = player.Character:FindFirstChildOfClass("Humanoid") if h then h:ChangeState(Enum.HumanoidStateType.Jumping) end end 
     end)
@@ -1158,41 +1029,9 @@ do
             if mouse.Target and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then player.Character.HumanoidRootPart.CFrame = CFrame.new(mouse.Hit.p + Vector3.new(0, 3, 0)) end
         end)
         tpTool.Parent = player.Backpack showNotice("Click TP выдан в инвентарь!")
-    end)
+    end, Color3.fromRGB(25, 25, 32), 8)
 
-    CreateLabel(vVip, "Взаимодействие с Игроками")
-    CreateActionRow(vVip, "Ник игрока...", "Телепорт к Игроку", function(val)
-        local tName = val:lower() local t = nil
-        for _, p in ipairs(Players:GetPlayers()) do
-            if p ~= player and (string.sub(p.Name:lower(), 1, #tName) == tName or string.sub(p.DisplayName:lower(), 1, #tName) == tName) then t = p break end
-        end
-        if t and t.Character and t.Character:FindFirstChild("HumanoidRootPart") and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            player.Character.HumanoidRootPart.CFrame = t.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, 3) showNotice("Телепорт к " .. t.Name)
-        else showNotice("⚠️ Игрок не найден!") end
-    end)
-
-    local setAntiFlingState
-    local flingInp = CreateTextBox(vVip, "Ник для Флинга...")
-
-    local flingBtn = make("TextButton", {Size = UDim2.new(1, -10, 0, 34), BackgroundColor3 = Color3.fromRGB(25, 25, 32), TextColor3 = Color3.fromRGB(220, 220, 220), Text = "Бесконечный Fling (До смерти): ВЫКЛ", Font = Enum.Font.GothamBold, TextSize = 12, LayoutOrder = 30}, vVip) addCorner(flingBtn, 6)
-
-    flingBtn.MouseButton1Click:Connect(function()
-        if isFling then 
-            stopFling() 
-            flingBtn.Text = "Бесконечный Fling (До смерти): ВЫКЛ"
-            tween(flingBtn, 0.2, {BackgroundColor3 = Color3.fromRGB(25, 25, 32)})
-        else
-            local t = getTarget(flingInp.Text)
-            if t then
-                startFling(t)
-                flingBtn.Text = "Flinging: " .. t.Name
-                tween(flingBtn, 0.2, {BackgroundColor3 = Color3.fromRGB(150, 50, 200)})
-            else showNotice("⚠️ Игрок не найден!") end
-        end
-    end)
-
-    setAntiFlingState = CreateToggleWithBind(vVip, "Anti-Fling (Защита)", "VIP_AntiFling", false, function(state) isAntiFling = state end)
-
+    CreateToggleWithBind(vVip, "🛡️ Anti-Fling (Защита от флинга)", "VIP_AntiFling", false, function(state) isAntiFling = state end, 9)
     RS.Stepped:Connect(function()
         if isAntiFling then
             pcall(function()
@@ -1211,6 +1050,64 @@ do
             end)
         end
     end)
+
+    CreateLabel(vVip, "Kutom Fling Script", 10)
+    CreateButton(vVip, "🌪️ Запустить KutomFling", function()
+        pcall(function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/Egorzq/KutomHub/refs/heads/main/Simple-KutomFling"))()
+            showNotice("KutomFling запущен!")
+        end)
+    end, Color3.fromRGB(150, 50, 200), 11)
+
+    CreateLabel(vVip, "Взаимодействие с Игроками", 12)
+    CreateActionRow(vVip, "Ник игрока...", "Телепорт к Игроку", function(val)
+        local tName = val:lower() local t = nil
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= player and (string.sub(p.Name:lower(), 1, #tName) == tName or string.sub(p.DisplayName:lower(), 1, #tName) == tName) then t = p break end
+        end
+        if t and t.Character and t.Character:FindFirstChild("HumanoidRootPart") and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            player.Character.HumanoidRootPart.CFrame = t.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, 3) showNotice("Телепорт к " .. t.Name)
+        else showNotice("⚠️ Игрок не найден!") end
+    end)
+
+    local isFreecam = false
+    local fcPart = nil
+    local fcConn = nil
+    CreateToggleWithBind(vVip, "🎥 Свободная камера (Freecam)", "VIP_Freecam", false, function(state)
+        isFreecam = state
+        local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+        if isFreecam then
+            if hrp then hrp.Anchored = true end
+            fcPart = Instance.new("Part")
+            fcPart.Transparency = 1 fcPart.CanCollide = false fcPart.Anchored = true
+            fcPart.Position = workspace.CurrentCamera.CFrame.Position fcPart.Parent = workspace
+            workspace.CurrentCamera.CameraSubject = fcPart
+            
+            local speed = 50
+            fcConn = RS.RenderStepped:Connect(function(dt)
+                local cam = workspace.CurrentCamera
+                local moveDir = Vector3.new()
+                if UIS:IsKeyDown(Enum.KeyCode.W) then moveDir = moveDir + cam.CFrame.LookVector end
+                if UIS:IsKeyDown(Enum.KeyCode.S) then moveDir = moveDir - cam.CFrame.LookVector end
+                if UIS:IsKeyDown(Enum.KeyCode.A) then moveDir = moveDir - cam.CFrame.RightVector end
+                if UIS:IsKeyDown(Enum.KeyCode.D) then moveDir = moveDir + cam.CFrame.RightVector end
+                if UIS:IsKeyDown(Enum.KeyCode.E) then moveDir = moveDir + cam.CFrame.UpVector end
+                if UIS:IsKeyDown(Enum.KeyCode.Q) then moveDir = moveDir - cam.CFrame.UpVector end
+                
+                if UIS:IsKeyDown(Enum.KeyCode.LeftShift) then speed = 100 else speed = 50 end
+                
+                if moveDir.Magnitude > 0 then fcPart.Position = fcPart.Position + (moveDir.Unit * speed * dt) end
+                fcPart.CFrame = CFrame.new(fcPart.Position, fcPart.Position + cam.CFrame.LookVector)
+            end)
+            showNotice("Свободная камера включена!")
+        else
+            if hrp then hrp.Anchored = false end
+            if fcConn then fcConn:Disconnect() end
+            if fcPart then fcPart:Destroy() end
+            if player.Character and player.Character:FindFirstChild("Humanoid") then workspace.CurrentCamera.CameraSubject = player.Character.Humanoid end
+            showNotice("Свободная камера выключена")
+        end
+    end, 14)
 end
 
 -- ================== 5. ПРОЧЕЕ ==================
@@ -1240,12 +1137,22 @@ do
     local currentBhopSpeed = 16
     local timeOnGround = 0
 
+    local bhopMaxInp = CreateTextBox(vOther, "Макс. скорость Bhop (по ум. 100)", tostring(mySetts.bhopMaxSpeed), 3)
+    bhopMaxInp.FocusLost:Connect(function()
+        local n = tonumber(bhopMaxInp.Text)
+        if n then
+            mySetts.bhopMaxSpeed = n
+            saveData()
+            showNotice("Макс. скорость Bhop: " .. n)
+        end
+    end)
+
     CreateToggleWithBind(vOther, "🐰 Bhop (Ускорение при прыжках)", "Other_Bhop", false, function(state)
         isBhop = state
         if not isBhop and player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
             player.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = mySetts.targetSpeed or 16
         end
-    end, 3)
+    end, 4)
 
     RS.RenderStepped:Connect(function(dt)
         if isBhop then
@@ -1256,15 +1163,16 @@ do
                 local inAir = (hum:GetState() == Enum.HumanoidStateType.Freefall or hum:GetState() == Enum.HumanoidStateType.Jumping)
                 local isMoving = hum.MoveDirection.Magnitude > 0
                 local baseSpeed = mySetts.targetSpeed or 16
+                local maxSpeed = mySetts.bhopMaxSpeed or 100
 
                 if not inAir then
                     timeOnGround = timeOnGround + dt
-                    if timeOnGround > 0.5 then
+                    if timeOnGround > 0.3 then
                         currentBhopSpeed = baseSpeed
                     end
                     if isMoving and UIS:IsKeyDown(Enum.KeyCode.Space) then
                         hum:ChangeState(Enum.HumanoidStateType.Jumping)
-                        currentBhopSpeed = math.min(100, currentBhopSpeed + 8)
+                        currentBhopSpeed = math.min(maxSpeed, currentBhopSpeed + 8)
                         timeOnGround = 0
                     end
                 else
@@ -1273,7 +1181,6 @@ do
                 
                 hum.WalkSpeed = currentBhopSpeed
 
-                -- МОМЕНТАЛЬНЫЙ СТРЕЙФ В ВОЗДУХЕ
                 if isMoving and inAir then
                     local dir = hum.MoveDirection
                     local flatVel = dir * currentBhopSpeed
@@ -1283,12 +1190,59 @@ do
         end
     end)
 
-    CreateLabel(vOther, "Маршрутный Тестер (Auto-Walk)", 4)
+    CreateLabel(vOther, "Телепорты по точкам (Waypoints)", 6)
+
+    local tpContainer = make("Frame", {Size = UDim2.new(1,-10,0,0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1, LayoutOrder = 7}, vOther)
+    make("UIListLayout", {SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 5)}, tpContainer)
+
+    local function renderTeleports()
+        for _, child in ipairs(tpContainer:GetChildren()) do if child:IsA("Frame") then child:Destroy() end end
+        for tName, tData in pairs(teleports) do
+            local Row = make("Frame", {Size = UDim2.new(1, 0, 0, 35), BackgroundTransparency = 1}, tpContainer)
+            local TpBtn = make("TextButton", {Size = UDim2.new(1, -85, 1, 0), BackgroundColor3 = Color3.fromRGB(40, 120, 200), Text = "📍 " .. tName, TextColor3 = Color3.fromRGB(255, 255, 255), Font = Enum.Font.GothamBold, TextSize = 12}, Row) addCorner(TpBtn, 6)
+            local BindBtn = make("TextButton", {Size = UDim2.new(0, 35, 1, 0), Position = UDim2.new(1, -80, 0, 0), BackgroundColor3 = Color3.fromRGB(60, 60, 70), Font = Enum.Font.GothamBold, TextSize = 11}, Row) addCorner(BindBtn, 6)
+            
+            setupBind(BindBtn, "TP_" .. tName)
+
+            local DelBtn = make("TextButton", {Size = UDim2.new(0, 35, 1, 0), Position = UDim2.new(1, -40, 0, 0), BackgroundColor3 = Color3.fromRGB(180, 50, 50), Text = "🗑️", TextColor3 = Color3.fromRGB(255, 255, 255), Font = Enum.Font.GothamBold, TextSize = 12}, Row) addCorner(DelBtn, 6)
+
+            TpBtn.MouseButton1Click:Connect(function()
+                tpToPos(CFrame.new(unpack(tData.pos)))
+                showNotice("Телепорт на " .. tName)
+            end)
+
+            DelBtn.MouseButton1Click:Connect(function()
+                teleports[tName] = nil
+                binds["TP_" .. tName] = nil
+                saveData()
+                renderTeleports()
+            end)
+        end
+    end
+    renderTeleports()
+
+    local tpSaveRow = make("Frame", {Size = UDim2.new(1, -10, 0, 35), BackgroundTransparency = 1, LayoutOrder = 8}, vOther)
+    local tpInp = make("TextBox", {Size = UDim2.new(0.65, -5, 1, 0), BackgroundColor3 = Color3.fromRGB(20, 20, 26), PlaceholderText = "Название точки...", Text = "", TextColor3 = Color3.fromRGB(255, 255, 255), Font = Enum.Font.Gotham, TextSize = 12}, tpSaveRow) addCorner(tpInp, 6)
+    local tpAddBtn = make("TextButton", {Size = UDim2.new(0.35, 0, 1, 0), Position = UDim2.new(0.65, 5, 0, 0), BackgroundColor3 = Color3.fromRGB(40, 160, 60), Text = "➕ Сохранить", TextColor3 = Color3.fromRGB(255, 255, 255), Font = Enum.Font.GothamBold, TextSize = 12}, tpSaveRow) addCorner(tpAddBtn, 6)
+
+    tpAddBtn.MouseButton1Click:Connect(function()
+        local n = tpInp.Text
+        if n ~= "" and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local p = player.Character.HumanoidRootPart.Position
+            teleports[n] = {pos = {p.X, p.Y, p.Z}}
+            saveData()
+            renderTeleports()
+            tpInp.Text = ""
+            showNotice("Точка сохранена!")
+        end
+    end)
+
+    CreateLabel(vOther, "Маршрутный Тестер (Auto-Walk)", 9)
     local rtPointsContainer = Instance.new("Frame")
     rtPointsContainer.Size = UDim2.new(1, 0, 0, 0)
     rtPointsContainer.AutomaticSize = Enum.AutomaticSize.Y
     rtPointsContainer.BackgroundTransparency = 1
-    rtPointsContainer.LayoutOrder = 5
+    rtPointsContainer.LayoutOrder = 10
     rtPointsContainer.Parent = vOther
     make("UIListLayout", {Padding = UDim.new(0, 5), SortOrder = Enum.SortOrder.LayoutOrder}, rtPointsContainer)
 
@@ -1320,9 +1274,9 @@ do
     end
     createPointRow() createPointRow()
 
-    CreateButton(vOther, "+ Добавить точку", createPointRow, Color3.fromRGB(40, 120, 200), 6)
-    local rtSpeedInp = CreateTextBox(vOther, "Время пути между точками (сек)", "2", 7)
-    CreateToggleWithBind(vOther, "Зациклить маршрут", "Other_LoopRoute", false, function(state) rtIsLooping = state end, 8)
+    CreateButton(vOther, "+ Добавить точку", createPointRow, Color3.fromRGB(40, 120, 200), 11)
+    local rtSpeedInp = CreateTextBox(vOther, "Время пути между точками (сек)", "2", 12)
+    CreateToggleWithBind(vOther, "Зациклить маршрут", "Other_LoopRoute", false, function(state) rtIsLooping = state end, 13)
 
     CreateButton(vOther, "▶ ЗАПУСТИТЬ / СТОП МАРШРУТ", function()
         if rtIsMoving then
@@ -1356,7 +1310,7 @@ do
             end
             showNotice("Маршрут завершен.")
         end)
-    end, Color3.fromRGB(40, 160, 60), 9)
+    end, Color3.fromRGB(40, 160, 60), 14)
 end
 
 -- ================== 6. НАСТРОЙКИ И КОНФИГИ ==================
@@ -1364,14 +1318,14 @@ do
     CreateLabel(vSetts, "Конфиг (Файлы)", 1)
     CreateActionRow(vSetts, "Имя конфига...", "💾 Сохранить", function(val)
         if val ~= "" and writefile then
-            pcall(function() writefile(val..".json", Http:JSONEncode({customAnims=customAnims, customPacks=customPacks, binds=binds, mySetts=mySetts, mm2Tracks=mm2Tracks})) end) showNotice("Конфиг "..val.." сохранен!")
+            pcall(function() writefile(val..".json", Http:JSONEncode({customAnims=customAnims, customPacks=customPacks, binds=binds, mySetts=mySetts, mm2Tracks=mm2Tracks, allTeleports=allTeleports})) end) showNotice("Конфиг "..val.." сохранен!")
         end
     end, "📂 Загрузить", function(val)
         if val ~= "" and readfile and isfile and isfile(val..".json") then
             pcall(function()
                 local data = Http:JSONDecode(readfile(val..".json"))
                 if data then 
-                    customAnims = data.customAnims or {} customPacks = data.customPacks or {} binds = data.binds or {} mm2Tracks = data.mm2Tracks or mm2Tracks 
+                    customAnims = data.customAnims or {} customPacks = data.customPacks or {} binds = data.binds or {} mm2Tracks = data.mm2Tracks or mm2Tracks allTeleports = data.allTeleports or {}
                     if data.mySetts then for k, v in pairs(data.mySetts) do mySetts[k] = v end end
                     showNotice("Конфиг загружен! Перезайдите.") 
                 end
@@ -1450,6 +1404,22 @@ do
             end
         end
     end, 13)
+
+    CreateToggleWithBind(vSetts, "✨ Красивые шейдеры (RTX)", "Setts_Shaders", false, function(state)
+        if state then
+            if not Lighting:FindFirstChild("KutomShadersBloom") then
+                local bloom = Instance.new("BloomEffect", Lighting) bloom.Name = "KutomShadersBloom" bloom.Intensity = 0.1 bloom.Size = 24 bloom.Threshold = 2
+                local cc = Instance.new("ColorCorrectionEffect", Lighting) cc.Name = "KutomShadersCC" cc.Brightness = 0.05 cc.Contrast = 0.1 cc.Saturation = 0.1 cc.TintColor = Color3.fromRGB(255, 224, 219)
+                local sun = Instance.new("SunRaysEffect", Lighting) sun.Name = "KutomShadersSun" sun.Intensity = 0.05 sun.Spread = 0.8
+                local blur = Instance.new("BlurEffect", Lighting) blur.Name = "KutomShadersBlur" blur.Size = 2
+            end
+        else
+            if Lighting:FindFirstChild("KutomShadersBloom") then Lighting.KutomShadersBloom:Destroy() end
+            if Lighting:FindFirstChild("KutomShadersCC") then Lighting.KutomShadersCC:Destroy() end
+            if Lighting:FindFirstChild("KutomShadersSun") then Lighting.KutomShadersSun:Destroy() end
+            if Lighting:FindFirstChild("KutomShadersBlur") then Lighting.KutomShadersBlur:Destroy() end
+        end
+    end, 13.5)
 
     CreateToggleWithBind(vSetts, "✅ Радужный логотип", "Setts_Rainbow", mySetts.rainbow, function(state)
         mySetts.rainbow = state
