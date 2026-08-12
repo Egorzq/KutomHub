@@ -1,4 +1,4 @@
--- Ультрасовременный GUI с WalkFling
+-- Ультрасовременный GUI с Target WalkFling и сохранением позиции
 local CoreGui = game:GetService("CoreGui")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
@@ -22,8 +22,8 @@ MainFrame.Name = "MainFrame"
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
 MainFrame.BackgroundTransparency = 0.1
-MainFrame.Position = UDim2.new(0.5, -125, 0.5, -100)
-MainFrame.Size = UDim2.new(0, 250, 0, 200)
+MainFrame.Position = UDim2.new(0.5, -125, 0.5, -115)
+MainFrame.Size = UDim2.new(0, 250, 0, 230)
 MainFrame.Active = true
 MainFrame.Draggable = true
 MainFrame.ClipsDescendants = true
@@ -75,20 +75,44 @@ local CloseCorner = Instance.new("UICorner")
 CloseCorner.CornerRadius = UDim.new(1, 0)
 CloseCorner.Parent = CloseButton
 
+-- Поле ввода никнейма (или части)
+local TargetBox = Instance.new("TextBox")
+TargetBox.Parent = MainFrame
+TargetBox.BackgroundColor3 = Color3.fromRGB(25, 25, 40)
+TargetBox.Position = UDim2.new(0.1, 0, 0.23, 0)
+TargetBox.Size = UDim2.new(0, 200, 0, 35)
+TargetBox.Font = Enum.Font.Gotham
+TargetBox.PlaceholderText = "Введите ник или часть..."
+TargetBox.Text = ""
+TargetBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+TargetBox.PlaceholderColor3 = Color3.fromRGB(120, 120, 150)
+TargetBox.TextSize = 12
+TargetBox.ClearTextOnFocus = false
+
+local BoxCorner = Instance.new("UICorner")
+BoxCorner.CornerRadius = UDim.new(0, 8)
+BoxCorner.Parent = TargetBox
+
+local BoxStroke = Instance.new("UIStroke")
+BoxStroke.Parent = TargetBox
+BoxStroke.Color = Color3.fromRGB(0, 255, 200)
+BoxStroke.Transparency = 0.5
+BoxStroke.Thickness = 1
+
 -- Кнопка WalkFling
 local WalkFlingButton = Instance.new("TextButton")
 WalkFlingButton.Parent = MainFrame
 WalkFlingButton.BackgroundColor3 = Color3.fromRGB(25, 25, 40)
-WalkFlingButton.Position = UDim2.new(0.1, 0, 0.35, 0)
-WalkFlingButton.Size = UDim2.new(0, 200, 0, 50)
+WalkFlingButton.Position = UDim2.new(0.1, 0, 0.43, 0)
+WalkFlingButton.Size = UDim2.new(0, 200, 0, 45)
 WalkFlingButton.Font = Enum.Font.GothamBold
 WalkFlingButton.Text = "ВКЛЮЧИТЬ"
 WalkFlingButton.TextColor3 = Color3.fromRGB(0, 255, 200)
-WalkFlingButton.TextSize = 15
+WalkFlingButton.TextSize = 14
 WalkFlingButton.AutoButtonColor = false
 
 local ButtonCorner = Instance.new("UICorner")
-ButtonCorner.CornerRadius = UDim.new(0, 12)
+ButtonCorner.CornerRadius = UDim.new(0, 10)
 ButtonCorner.Parent = WalkFlingButton
 
 local ButtonStroke = Instance.new("UIStroke")
@@ -100,7 +124,7 @@ ButtonStroke.Thickness = 1.5
 local StatusLabel = Instance.new("TextLabel")
 StatusLabel.Parent = MainFrame
 StatusLabel.BackgroundTransparency = 1
-StatusLabel.Position = UDim2.new(0, 0, 0.78, 0)
+StatusLabel.Position = UDim2.new(0, 0, 0.82, 0)
 StatusLabel.Size = UDim2.new(1, 0, 0, 20)
 StatusLabel.Font = Enum.Font.Gotham
 StatusLabel.Text = "Статус: Выключен"
@@ -115,13 +139,52 @@ CloseButton.MouseButton1Click:Connect(function()
     ScreenGui:Destroy()
 end)
 
--- Логика WalkFling
+-- Функция поиска игрока по полному нику или его части
+local function getTargetPlayer(nameInput)
+    nameInput = nameInput:lower()
+    if nameInput == "" then return nil end
+    
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            local pName = player.Name:lower()
+            local pDisp = player.DisplayName:lower()
+            if pName:sub(1, #nameInput) == nameInput or pDisp:sub(1, #nameInput) == nameInput then
+                return player
+            end
+        end
+    end
+    return nil
+end
+
+-- Логика WalkFling с телепортацией и возвратом
 local walkflinging = false
+local originalPosition = nil
+
 WalkFlingButton.MouseButton1Click:Connect(function()
     walkflinging = not walkflinging
     
     if walkflinging then
-        StatusLabel.Text = "Статус: Активен"
+        local targetPlayer = getTargetPlayer(TargetBox.Text)
+        if not targetPlayer then
+            walkflinging = false
+            StatusLabel.Text = "Ошибка: Игрок не найден!"
+            StatusLabel.TextColor3 = Color3.fromRGB(255, 50, 50)
+            return
+        end
+        
+        -- Сохраняем исходную позицию перед телепортацией
+        local char = LocalPlayer.Character
+        local root = char and char:FindFirstChild("HumanoidRootPart")
+        if root then
+            originalPosition = root.CFrame
+        else
+            walkflinging = false
+            StatusLabel.Text = "Ошибка: Персонаж не загружен!"
+            StatusLabel.TextColor3 = Color3.fromRGB(255, 50, 50)
+            return
+        end
+        
+        StatusLabel.Text = "Статус: Флинг (" .. targetPlayer.Name .. ")"
         StatusLabel.TextColor3 = Color3.fromRGB(0, 255, 100)
         
         TweenService:Create(WalkFlingButton, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(0, 255, 200)}):Play()
@@ -138,19 +201,26 @@ WalkFlingButton.MouseButton1Click:Connect(function()
             
             while walkflinging do
                 RunService.Heartbeat:Wait()
-                local character = LocalPlayer.Character
-                local root = character and character:FindFirstChild("HumanoidRootPart")
-                if not (character and character.Parent and root and root.Parent) then continue end
                 
-                local vel = root.Velocity
-                root.Velocity = vel * 10000 + Vector3.new(0, 10000, 0)
-                RunService.RenderStepped:Wait()
-                if character and character.Parent and root and root.Parent then
-                    root.Velocity = vel
-                end
-                RunService.Stepped:Wait()
-                if character and character.Parent and root and root.Parent then
-                    root.Velocity = vel + Vector3.new(0, 0.1, 0)
+                local character = LocalPlayer.Character
+                local myRoot = character and character:FindFirstChild("HumanoidRootPart")
+                local targetChar = targetPlayer.Character
+                local targetRoot = targetChar and targetChar:FindFirstChild("HumanoidRootPart")
+                
+                if character and character.Parent and myRoot and myRoot.Parent and targetRoot then
+                    -- Постоянно телепортируемся к цели и крутим физику
+                    myRoot.CFrame = targetRoot.CFrame
+                    
+                    local vel = myRoot.Velocity
+                    myRoot.Velocity = vel * 10000 + Vector3.new(0, 10000, 0)
+                    RunService.RenderStepped:Wait()
+                    if character and character.Parent and myRoot and myRoot.Parent then
+                        myRoot.Velocity = vel
+                    end
+                    RunService.Stepped:Wait()
+                    if character and character.Parent and myRoot and myRoot.Parent then
+                        myRoot.Velocity = vel + Vector3.new(0, 0.1, 0)
+                    end
                 end
             end
         end)
@@ -163,11 +233,23 @@ WalkFlingButton.MouseButton1Click:Connect(function()
         TweenService:Create(UIStroke, TweenInfo.new(0.2), {Color = Color3.fromRGB(0, 255, 200)}):Play()
         
         if LocalPlayer.Character then
+            local root = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+            -- Возвращаем на исходное место, если оно сохранено
+            if root and originalPosition then
+                root.CFrame = originalPosition
+                root.Velocity = Vector3.zero
+            end
+            
             for _, v in next, LocalPlayer.Character:GetDescendants() do
                 if v:IsA("BasePart") then
                     v.CustomPhysicalProperties = PhysicalProperties.new(0.7, 0.3, 0.5)
                     v.Velocity = Vector3.zero
-                    v.CanCollide = true
+                    
+                    if v.Name == "Handle" or v:IsA("Accessory") or v.Parent:IsA("Accessory") then
+                        v.CanCollide = false
+                    else
+                        v.CanCollide = true
+                    end
                 end
             end
         end
