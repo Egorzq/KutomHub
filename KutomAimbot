@@ -1,0 +1,102 @@
+--[[
+    Аимбот с переключением (toggle) по клавише K.
+    Одно нажатие — включить слежение, второе — выключить.
+    Правая кнопка мыши больше не используется.
+]]
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+-- Состояние: включён ли аимбот
+local aimbotEnabled = false
+
+-- GUI-индикатор (кружок в центре экрана)
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "AimbotToggle"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+local indicator = Instance.new("Frame")
+indicator.Size = UDim2.new(0, 20, 0, 20)
+indicator.Position = UDim2.new(0.5, -10, 0.5, -10)
+indicator.BackgroundColor3 = Color3.fromRGB(255, 0, 0) -- красный (выкл)
+indicator.BackgroundTransparency = 0.4
+indicator.BorderSizePixel = 0
+indicator.Visible = true
+indicator.Parent = screenGui
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(1, 0)
+corner.Parent = indicator
+
+-- Текст-подсказка
+local label = Instance.new("TextLabel")
+label.Size = UDim2.new(0, 60, 0, 20)
+label.Position = UDim2.new(0.5, -30, 0, 32) -- под индикатором
+label.BackgroundTransparency = 1
+label.Text = "OFF"
+label.TextColor3 = Color3.fromRGB(255, 255, 255)
+label.TextScaled = true
+label.Font = Enum.Font.SourceSansBold
+label.Parent = screenGui
+
+-- Функция поиска ближайшего игрока (по дистанции от камеры)
+local function getNearestPlayer()
+    local nearest = nil
+    local minDist = math.huge
+    local camPos = Camera.CFrame.Position
+
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Head") then
+            local headPos = player.Character.Head.Position
+            local dist = (headPos - camPos).Magnitude
+            if dist < minDist then
+                minDist = dist
+                nearest = player
+            end
+        end
+    end
+    return nearest
+end
+
+-- Основной цикл аимбота (выполняется каждый кадр)
+RunService.RenderStepped:Connect(function()
+    if not aimbotEnabled then
+        -- Выключен — индикатор красный, надпись "OFF"
+        indicator.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+        label.Text = "OFF"
+        return
+    end
+
+    -- Включен — ищем цель
+    local target = getNearestPlayer()
+    if target and target.Character and target.Character:FindFirstChild("Head") then
+        local headPos = target.Character.Head.Position
+        local camPos = Camera.CFrame.Position
+
+        -- Наводим камеру на голову цели
+        Camera.CFrame = CFrame.lookAt(camPos, headPos)
+
+        -- Зелёный — цель захвачена
+        indicator.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+        label.Text = "ON ✓"
+    else
+        -- Жёлтый — цели нет
+        indicator.BackgroundColor3 = Color3.fromRGB(255, 255, 0)
+        label.Text = "ON ✗"
+    end
+end)
+
+-- Переключение по клавише K (toggle)
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == Enum.KeyCode.K then
+        aimbotEnabled = not aimbotEnabled
+        print("[Aimbot]", aimbotEnabled and "Включен" or "Выключен")
+    end
+end)
+
+print("[Aimbot Toggle] Запущен. Нажми K для включения/выключения.")
