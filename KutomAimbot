@@ -1,7 +1,9 @@
 --[[
-    Аимбот с переключением (toggle) по клавише K.
-    Одно нажатие — включить слежение, второе — выключить.
-    Правая кнопка мыши больше не используется.
+    Аимбот для Knife Duels 2v2.
+    Toggle по K.
+    Автоопределение команд.
+    Нажми J – начнётся отсчёт 2 секунд. Если игрок всё это время рядом (в радиусе),
+    он будет игнорироваться навсегда (до перезапуска скрипта).
 ]]
 
 local Players = game:GetService("Players")
@@ -10,93 +12,327 @@ local Camera = workspace.CurrentCamera
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 
--- Состояние: включён ли аимбот
-local aimbotEnabled = false
+local enabled = false
+local detectionMethod = nil
+local teamKey = nil
 
--- GUI-индикатор (кружок в центре экрана)
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "AimbotToggle"
-screenGui.ResetOnSpawn = false
-screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+-- Постоянный игнор-лист (ключи – UserId)
+local permanentIgnore = {}
+
+-- Отслеживаемые игроки для J: { [UserId] = время_входа_в_зону }
+local tracking = {}
+local IGNORE_RADIUS = 15
+local REQUIRED_TIME = 2 -- секунды
+
+-- GUI
+local sg = Instance.new("ScreenGui")
+sg.Name = "Aimbot2v2"
+sg.ResetOnSpawn = false
+sg.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
 local indicator = Instance.new("Frame")
 indicator.Size = UDim2.new(0, 20, 0, 20)
 indicator.Position = UDim2.new(0.5, -10, 0.5, -10)
-indicator.BackgroundColor3 = Color3.fromRGB(255, 0, 0) -- красный (выкл)
+indicator.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
 indicator.BackgroundTransparency = 0.4
 indicator.BorderSizePixel = 0
-indicator.Visible = true
-indicator.Parent = screenGui
-
+indicator.Parent = sg
 local corner = Instance.new("UICorner")
 corner.CornerRadius = UDim.new(1, 0)
 corner.Parent = indicator
 
--- Текст-подсказка
 local label = Instance.new("TextLabel")
-label.Size = UDim2.new(0, 60, 0, 20)
-label.Position = UDim2.new(0.5, -30, 0, 32) -- под индикатором
+label.Size = UDim2.new(0, 80, 0, 20)
+label.Position = UDim2.new(0.5, -40, 0, 32)
 label.BackgroundTransparency = 1
 label.Text = "OFF"
 label.TextColor3 = Color3.fromRGB(255, 255, 255)
 label.TextScaled = true
 label.Font = Enum.Font.SourceSansBold
-label.Parent = screenGui
+label.Parent = sg
 
--- Функция поиска ближайшего игрока (по дистанции от камеры)
-local function getNearestPlayer()
-    local nearest = nil
-    local minDist = math.huge
-    local camPos = Camera.CFrame.Position
+-- Индикатор отслеживания (жёлтый)
+local trackIndicator = Instance.new("Frame")
+trackIndicator.Size = UDim2.new(0, 14, 0, 14)
+trackIndicator.Position = UDim2.new(0.5, -7, 0.2, 0)
+trackIndicator.BackgroundColor3 = Color3.fromRGB(255, 255, 0)
+trackIndicator.BackgroundTransparency = 0.5
+trackIndicator.BorderSizePixel = 0
+trackIndicator.Visible = false
+trackIndicator.Parent = sg
+local tcorner = Instance.new("UICorner")
+tcorner.CornerRadius = UDim.new(1, 0)
+tcorner.Parent = trackIndicator
 
+-- === ОПРЕДЕЛЕНИЕ МЕТОДА КОМАНД (без изменений) ===
+local function detectTeamMethod()
+    print("[Aimbot] Определение метода команд...")
+    
+    -- 1. Team
+    local teamValues = {}
     for _, player in pairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Head") then
-            local headPos = player.Character.Head.Position
-            local dist = (headPos - camPos).Magnitude
-            if dist < minDist then
-                minDist = dist
-                nearest = player
+        if player.Team then
+            table.insert(teamValues, player.Team)
+        end
+    end
+    local uniqueTeams = {}
+    for _, t in pairs(teamValues) do
+        if not uniqueTeams[t] then
+            uniqueTeams[t] = true
+        end
+    end
+    local teamList = {}
+    for k, _ in pairs(uniqueTeams) do
+        table.insert(teamList, k)
+    end
+    if #teamList >= 2 then
+        print("[Aimbot] Найдены команды через player.Team:", table.concat(teamList, ", "))
+        return "team"
+    end
+
+    -- 2. Папки
+    local folderGroups = {}
+    for _, player in pairs(Players:GetPlayers()) do
+        local char = player.Character
+        if char and char.Parent and char.Parent:IsA("Folder") then
+            local folderName = char.Parent.Name
+            if not folderGroups[folderName] then
+                folderGroups[folderName] = {}
+            end
+            table.insert(folderGroups[folderName], player)
+        end
+    end
+    local folderNames = {}
+    for name, list in pairs(folderGroups) do
+        if #list > 0 then
+            table.insert(folderNames, name)
+        end
+    end
+    if #folderNames >= 2 then
+        print("[Aimbot] Найдены папки команд:", table.concat(folderNames, ", "))
+        return "folder"
+    end
+
+    -- 3. Атрибуты
+    local attrKey = nil
+    for _, player in pairs(Players:GetPlayers()) do
+        local attrs = player:GetAttributes()
+        for k, v in pairs(attrs) do
+            if k:lower():find("team") then
+                attrKey = k
+                break
+            end
+        end
+        if attrKey then break end
+    end
+    if attrKey then
+        print("[Aimbot] Найден атрибут команды:", attrKey)
+        return "attribute", attrKey
+    end
+
+    print("[Aimbot] Не удалось определить команды, режим 1v1 (все игроки враги)")
+    return "fallback"
+end
+
+local method, extra = detectTeamMethod()
+
+-- === ФУНКЦИЯ ПРОВЕРКИ ВРАГА (с учётом постоянного игнора) ===
+local function isEnemy(player)
+    if player == LocalPlayer then return false end
+    if permanentIgnore[player.UserId] then return false end -- игнорируем навсегда
+
+    local char = player.Character
+    if not char then return false end
+    local hum = char:FindFirstChildWhichIsA("Humanoid")
+    if not hum or hum.Health <= 0 then return false end
+
+    if method == "team" then
+        local myTeam = LocalPlayer.Team
+        local theirTeam = player.Team
+        if myTeam and theirTeam then
+            return myTeam ~= theirTeam
+        end
+        return true
+    elseif method == "folder" then
+        local myFolder = LocalPlayer.Character and LocalPlayer.Character.Parent and LocalPlayer.Character.Parent.Name
+        local theirFolder = char.Parent and char.Parent.Name
+        if myFolder and theirFolder then
+            return myFolder ~= theirFolder
+        end
+        return true
+    elseif method == "attribute" then
+        local myTeam = LocalPlayer:GetAttribute(extra)
+        local theirTeam = player:GetAttribute(extra)
+        if myTeam and theirTeam then
+            return myTeam ~= theirTeam
+        end
+        return true
+    else -- fallback
+        return true
+    end
+end
+
+-- === ПОИСК БЛИЖАЙШЕГО ВРАГА ===
+local function getNearestEnemy()
+    local nearest, minDist = nil, math.huge
+    local camPos = Camera.CFrame.Position
+    for _, player in pairs(Players:GetPlayers()) do
+        if isEnemy(player) then
+            local head = player.Character and player.Character:FindFirstChild("Head")
+            if head then
+                local dist = (head.Position - camPos).Magnitude
+                if dist < minDist then
+                    minDist = dist
+                    nearest = player
+                end
             end
         end
     end
     return nearest
 end
 
--- Основной цикл аимбота (выполняется каждый кадр)
+-- === ОСНОВНОЙ ЦИКЛ АИМБОТА ===
 RunService.RenderStepped:Connect(function()
-    if not aimbotEnabled then
-        -- Выключен — индикатор красный, надпись "OFF"
+    if not enabled then
         indicator.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
         label.Text = "OFF"
         return
     end
-
-    -- Включен — ищем цель
-    local target = getNearestPlayer()
-    if target and target.Character and target.Character:FindFirstChild("Head") then
-        local headPos = target.Character.Head.Position
-        local camPos = Camera.CFrame.Position
-
-        -- Наводим камеру на голову цели
-        Camera.CFrame = CFrame.lookAt(camPos, headPos)
-
-        -- Зелёный — цель захвачена
-        indicator.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
-        label.Text = "ON ✓"
+    local target = getNearestEnemy()
+    if target and target.Character then
+        local head = target.Character:FindFirstChild("Head")
+        if head then
+            Camera.CFrame = CFrame.lookAt(Camera.CFrame.Position, head.Position)
+            indicator.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+            label.Text = "ON ✓"
+        else
+            indicator.BackgroundColor3 = Color3.fromRGB(255, 255, 0)
+            label.Text = "ON ✗"
+        end
     else
-        -- Жёлтый — цели нет
         indicator.BackgroundColor3 = Color3.fromRGB(255, 255, 0)
         label.Text = "ON ✗"
     end
 end)
 
--- Переключение по клавише K (toggle)
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
-    if input.KeyCode == Enum.KeyCode.K then
-        aimbotEnabled = not aimbotEnabled
-        print("[Aimbot]", aimbotEnabled and "Включен" or "Выключен")
+-- === ЛОГИКА ОТСЛЕЖИВАНИЯ ДЛЯ J ===
+-- Проверяем в RenderStepped, чтобы обновлять статус
+RunService.RenderStepped:Connect(function()
+    if not next(tracking) then
+        trackIndicator.Visible = false
+        return
+    end
+
+    local localChar = LocalPlayer.Character
+    if not localChar then
+        -- Если персонаж исчез, сбрасываем трекинг
+        tracking = {}
+        trackIndicator.Visible = false
+        return
+    end
+    local root = localChar:FindFirstChild("HumanoidRootPart") or localChar:FindFirstChild("Head")
+    if not root then
+        tracking = {}
+        trackIndicator.Visible = false
+        return
+    end
+
+    local now = os.time()
+    local toRemove = {}
+
+    for userId, startTime in pairs(tracking) do
+        local player = Players:GetPlayerByUserId(userId)
+        if not player then
+            toRemove[userId] = true
+            continue
+        end
+        local char = player.Character
+        if not char then
+            toRemove[userId] = true
+            continue
+        end
+        local pRoot = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Head")
+        if not pRoot then
+            toRemove[userId] = true
+            continue
+        end
+
+        local dist = (root.Position - pRoot.Position).Magnitude
+        if dist <= IGNORE_RADIUS then
+            -- Всё ещё рядом
+            if now - startTime >= REQUIRED_TIME then
+                -- Добавляем в постоянный игнор
+                permanentIgnore[userId] = true
+                print("[Aimbot] Игрок", player.Name, "добавлен в постоянный игнор")
+                toRemove[userId] = true
+            end
+        else
+            -- Вышел из радиуса – удаляем из отслеживания
+            toRemove[userId] = true
+        end
+    end
+
+    for userId, _ in pairs(toRemove) do
+        tracking[userId] = nil
+    end
+
+    if next(tracking) then
+        trackIndicator.Visible = true
+    else
+        trackIndicator.Visible = false
     end
 end)
 
-print("[Aimbot Toggle] Запущен. Нажми K для включения/выключения.")
+-- === ФУНКЦИЯ ЗАПУСКА ТРЕКИНГА (при нажатии J) ===
+local function startTrackingNearby()
+    local localChar = LocalPlayer.Character
+    if not localChar then
+        print("[Aimbot] Нет персонажа")
+        return
+    end
+    local root = localChar:FindFirstChild("HumanoidRootPart") or localChar:FindFirstChild("Head")
+    if not root then return end
+
+    local now = os.time()
+    local count = 0
+
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and not permanentIgnore[player.UserId] then
+            local char = player.Character
+            if char then
+                local pRoot = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Head")
+                if pRoot then
+                    local dist = (root.Position - pRoot.Position).Magnitude
+                    if dist <= IGNORE_RADIUS then
+                        tracking[player.UserId] = now
+                        count = count + 1
+                    end
+                end
+            end
+        end
+    end
+
+    if count > 0 then
+        print("[Aimbot] Начат трекинг", count, "игроков в радиусе", IGNORE_RADIUS)
+        trackIndicator.Visible = true
+    else
+        print("[Aimbot] Нет игроков в радиусе", IGNORE_RADIUS)
+    end
+end
+
+-- === ОБРАБОТКА КЛАВИШ ===
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+
+    if input.KeyCode == Enum.KeyCode.K then
+        enabled = not enabled
+        print("[Aimbot 2v2]", enabled and "Включен" or "Выключен")
+    end
+
+    if input.KeyCode == Enum.KeyCode.J then
+        startTrackingNearby()
+    end
+end)
+
+print("[Aimbot 2v2] Запущен. K – toggle, J – начать отслеживание на 2 сек для постоянного игнора")
+print("[Aimbot] Метод определения команд:", method, extra or "")
