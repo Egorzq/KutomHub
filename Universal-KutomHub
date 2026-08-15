@@ -108,7 +108,7 @@ local allTeleports = {}
 local mm2Tracks = {}
 
 local defaultSetts = {
-    rainbow = true, targetSpeed = 16, targetJump = 50, flySpeed = 50,
+    rainbow = true, targetSpeed = 16, targetJump = 50, flySpeed = 50, goldPartDuration = 3,
     selectedPackData = nil, autoPlaySong = false, lastPlayedSongId = nil,
     bhopMaxSpeed = 100, toggles = {}
 }
@@ -255,10 +255,11 @@ views["Movements"] = vMove
 
 local vMm2 = createView("MM2")
 local vVip = createView("Vip")
+local vTools = createView("Tools")
 local vOther = createView("Other")
 local vSetts = createView("Settings")
 
-local tabNamesRus = {Emotes = "Эмоции", Movements = "Движения", MM2 = "MM2 Читы", Vip = "VIP-Меню", Other = "Прочее", Settings = "Настройки"}
+local tabNamesRus = {Emotes = "Эмоции", Movements = "Движения", MM2 = "MM2 Читы", Vip = "VIP-Меню", Tools = "Инструменты", Other = "Прочее", Settings = "Настройки"}
 
 local function switchTab(name)
     for k, v in pairs(views) do 
@@ -278,7 +279,7 @@ local function makeSidebarIcon(icon, tabName)
     return b
 end
 
-makeSidebarIcon("🎵", "Emotes") makeSidebarIcon("🚶", "Movements") makeSidebarIcon("🔪", "MM2") makeSidebarIcon("⭐", "Vip") makeSidebarIcon("📦", "Other") makeSidebarIcon("⚙️", "Settings")
+makeSidebarIcon("🎵", "Emotes") makeSidebarIcon("🚶", "Movements") makeSidebarIcon("🔪", "MM2") makeSidebarIcon("⭐", "Vip") makeSidebarIcon("🛠️", "Tools") makeSidebarIcon("📦", "Other") makeSidebarIcon("⚙️", "Settings")
 
 -- КОМПОНЕНТЫ ИНТЕРФЕЙСА ДЛЯ ВКЛАДОК
 local function CreateLabel(page, text, layoutOrder) 
@@ -1150,44 +1151,6 @@ do
         if isInfJump and player.Character then local h = player.Character:FindFirstChildOfClass("Humanoid") if h then h:ChangeState(Enum.HumanoidStateType.Jumping) end end 
     end)
 
-    CreateButton(vVip, "Выдать предмет Click TP", function()
-        if player.Backpack:FindFirstChild("Click TP") or (player.Character and player.Character:FindFirstChild("Click TP")) then showNotice("Уже в инвентаре!") return end
-        local tpTool = Instance.new("Tool") tpTool.Name = "Click TP" tpTool.RequiresHandle = false tpTool.CanBeDropped = false
-        tpTool.Activated:Connect(function()
-            if mouse.Target and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then player.Character.HumanoidRootPart.CFrame = CFrame.new(mouse.Hit.p + Vector3.new(0, 3, 0)) end
-        end)
-        tpTool.Parent = player.Backpack showNotice("Click TP выдан в инвентарь!")
-    end, Color3.fromRGB(25, 25, 32), 8)
-    
-    CreateButton(vVip, "Выдать Gold Part (Прыжок в воздухе)", function()
-        if player.Backpack:FindFirstChild("Gold Part") or (player.Character and player.Character:FindFirstChild("Gold Part")) then showNotice("Уже в инвентаре!") return end
-        local tool = Instance.new("Tool")
-        tool.Name = "Gold Part"
-        tool.RequiresHandle = false
-        tool.CanBeDropped = false
-        tool.Activated:Connect(function()
-            local char = player.Character
-            local hrp = char and char:FindFirstChild("HumanoidRootPart")
-            if hrp then
-                local part = Instance.new("Part")
-                part.Size = Vector3.new(4, 1, 4)
-                part.Anchored = true
-                part.BrickColor = BrickColor.new("Bright yellow")
-                part.Material = Enum.Material.Neon
-                part.CFrame = hrp.CFrame * CFrame.new(0, -3.5, 0)
-                part.Parent = workspace
-                game:GetService("Debris"):AddItem(part, 3) 
-                
-                local hum = char:FindFirstChildOfClass("Humanoid")
-                if hum then
-                    hum:ChangeState(Enum.HumanoidStateType.Jumping)
-                end
-            end
-        end)
-        tool.Parent = player.Backpack
-        showNotice("Gold Part выдан в инвентарь!")
-    end, Color3.fromRGB(200, 150, 0))
-
     CreateToggleWithBind(vVip, "🛡️ Anti-Fling (Защита от флинга)", "VIP_AntiFling", false, function(state) isAntiFling = state end, 9)
     RS.Stepped:Connect(function()
         if isAntiFling then
@@ -1220,7 +1183,81 @@ do
     end)
 end
 
--- ================== 5. ПРОЧЕЕ ==================
+-- ================== 5. TOOLS (ИНСТРУМЕНТЫ) ==================
+do
+    CreateLabel(vTools, "Выдача Инструментов", 1)
+
+    CreateButton(vTools, "🖱️ Выдать Click TP", function()
+        if player.Backpack:FindFirstChild("Click TP") or (player.Character and player.Character:FindFirstChild("Click TP")) then showNotice("Уже в инвентаре!") return end
+        local tpTool = Instance.new("Tool") tpTool.Name = "Click TP" tpTool.RequiresHandle = false tpTool.CanBeDropped = false
+        tpTool.Activated:Connect(function()
+            if mouse.Target and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then player.Character.HumanoidRootPart.CFrame = CFrame.new(mouse.Hit.p + Vector3.new(0, 3, 0)) end
+        end)
+        tpTool.Parent = player.Backpack showNotice("Click TP выдан в инвентарь!")
+    end, Color3.fromRGB(25, 25, 32), 2)
+
+    CreateLabel(vTools, "Настройки Gold Part", 3)
+    CreateActionRow(vTools, "Время в сек (умолч. 3)", "Применить", function(val)
+        local n = tonumber(val)
+        if n and n > 0 then
+            mySetts.goldPartDuration = n
+            saveData()
+            showNotice("Gold Part будет жить: " .. n .. " сек")
+        end
+    end, "Сброс", function()
+        mySetts.goldPartDuration = 3
+        saveData()
+        showNotice("Сброшено до 3 сек")
+    end, 4)
+
+    local isGoldPartJump = true
+    CreateToggleWithBind(vTools, "⬆️ Авто-прыжок при установке Gold Part", "Tools_GoldJump", true, function(state)
+        isGoldPartJump = state
+    end, 5)
+
+    CreateButton(vTools, "🟨 Выдать Gold Part", function()
+        if player.Backpack:FindFirstChild("Gold Part") or (player.Character and player.Character:FindFirstChild("Gold Part")) then showNotice("Уже в инвентаре!") return end
+        local tool = Instance.new("Tool")
+        tool.Name = "Gold Part"
+        tool.RequiresHandle = false
+        tool.CanBeDropped = false
+        tool.Activated:Connect(function()
+            local char = player.Character
+            local hrp = char and char:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                local part = Instance.new("Part")
+                part.Name = "KutomGoldPart"
+                part.Size = Vector3.new(4, 1, 4)
+                part.Anchored = true
+                part.BrickColor = BrickColor.new("Bright yellow")
+                part.Material = Enum.Material.Neon
+                part.CFrame = hrp.CFrame * CFrame.new(0, -3.5, 0)
+                part.Parent = workspace
+                game:GetService("Debris"):AddItem(part, mySetts.goldPartDuration or 3) 
+                
+                local hum = char:FindFirstChildOfClass("Humanoid")
+                if hum and isGoldPartJump then
+                    hum:ChangeState(Enum.HumanoidStateType.Jumping)
+                end
+            end
+        end)
+        tool.Parent = player.Backpack
+        showNotice("Gold Part выдан в инвентарь!")
+    end, Color3.fromRGB(200, 150, 0), 6)
+
+    CreateButton(vTools, "🧹 Удалить все Gold Parts", function()
+        local count = 0
+        for _, v in ipairs(workspace:GetChildren()) do
+            if v.Name == "KutomGoldPart" then
+                v:Destroy()
+                count = count + 1
+            end
+        end
+        showNotice("Удалено партов: " .. count)
+    end, Color3.fromRGB(180, 50, 50), 7)
+end
+
+-- ================== 6. ПРОЧЕЕ ==================
 do
     CreateLabel(vOther, "Утилиты", 0)
     
@@ -1423,16 +1460,9 @@ do
     end, Color3.fromRGB(40, 160, 60), 14)
 end
 
--- ================== 6. НАСТРОЙКИ И КОНФИГИ ==================
+-- ================== 7. НАСТРОЙКИ И КОНФИГИ ==================
 do
     CreateLabel(vSetts, "Внешние Скрипты (Запуск)")
-    CreateButton(vSetts, "🎧 YouTube Player V8", function()
-        pcall(function()
-            loadstring(game:HttpGet("https://rawscripts.net/raw/Universal-Script-YouTube-Music-Player-V8-236600"))()
-            showNotice("YouTube Player запущен!")
-        end)
-    end, Color3.fromRGB(200, 50, 50))
-    
     CreateButton(vSetts, "🎯 KutomAimbot (Не для MM2)", function()
         pcall(function()
             loadstring(game:HttpGet("https://raw.githubusercontent.com/Egorzq/KutomHub/refs/heads/main/KutomAimbot"))()
