@@ -13,6 +13,7 @@ local TPS = game:GetService("TeleportService")
 local Lighting = game:GetService("Lighting")
 local AssetService = game:GetService("AssetService")
 local AvatarEditorService = game:GetService("AvatarEditorService")
+local VirtualUser = game:GetService("VirtualUser")
 
 local currentAnimTrack = nil
 local currentAnimId = nil
@@ -28,7 +29,10 @@ local isAutoGrab = false
 local isAutoShoot = false
 local isSilentAim = false
 local isXRay = false
+local isAutoEvade = false
 local origXrayTrans = {}
+local customFov = 70
+local isFovEnabled = false
 
 -- Функция определения ролей
 local function getRoleInfo(p)
@@ -952,6 +956,10 @@ do
                 customCrosshair.Position = UDim2.new(0, msLoc.X, 0, msLoc.Y)
                 customCrosshair.BackgroundColor3 = Color3.fromHSV((tick() % 2) / 2, 1, 1)
             end
+            
+            if isFovEnabled then
+                workspace.CurrentCamera.FieldOfView = customFov
+            end
         end)
     end)
 
@@ -974,6 +982,23 @@ do
                             if shootRemote then
                                 shootRemote:InvokeServer(1, murd.HumanoidRootPart.Position, "AH")
                             end
+                        end
+                    end
+                end
+                
+                if isAutoEvade and player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0 then
+                    local murd = nil
+                    for _, p in ipairs(Players:GetPlayers()) do
+                        if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and getRoleInfo(p) == "MURDERER" then
+                            murd = p.Character break
+                        end
+                    end
+                    if murd then
+                        local dist = (player.Character.HumanoidRootPart.Position - murd.HumanoidRootPart.Position).Magnitude
+                        if dist < 18 then
+                            local dir = (player.Character.HumanoidRootPart.Position - murd.HumanoidRootPart.Position).Unit
+                            dir = Vector3.new(dir.X, 0, dir.Z).Unit
+                            player.Character.Humanoid:Move(dir)
                         end
                     end
                 end
@@ -1259,9 +1284,13 @@ end
 
 -- ================== 6. ПРОЧЕЕ ==================
 do
-    CreateLabel(vOther, "Утилиты", 0)
+    CreateLabel(vOther, "Утилиты для выживания", 0)
     
-    local fResetCont = make("Frame", {Size = UDim2.new(1, -10, 0, 34), BackgroundTransparency = 1, LayoutOrder = 1}, vOther)
+    CreateToggleWithBind(vOther, "🏃 Auto-Evade (Убегать от маньяка)", "Other_AutoEvade", false, function(state)
+        isAutoEvade = state
+    end, 1)
+
+    local fResetCont = make("Frame", {Size = UDim2.new(1, -10, 0, 34), BackgroundTransparency = 1, LayoutOrder = 2}, vOther)
     local fastResetBtn = make("TextButton", {Size = UDim2.new(1, -50, 1, 0), BackgroundColor3 = Color3.fromRGB(180, 50, 50), TextColor3 = Color3.fromRGB(255, 255, 255), Text = "💀 Быстрый Ресет (Возврат)", Font = Enum.Font.GothamBold, TextSize = 12}, fResetCont) addCorner(fastResetBtn, 6)
     local fastResetBindBtn = make("TextButton", {Size = UDim2.new(0, 45, 1, 0), Position = UDim2.new(1, -45, 0, 0), BackgroundColor3 = Color3.fromRGB(35, 35, 45), Font = Enum.Font.GothamBold, TextSize = 11}, fResetCont) addCorner(fastResetBindBtn, 6)
     
@@ -1279,12 +1308,12 @@ do
     fastResetBtn.MouseButton1Click:Connect(doFastReset)
 
     -- BHOP
-    CreateLabel(vOther, "Модификаторы Движения", 2)
+    CreateLabel(vOther, "Модификаторы Движения", 3)
     local isBhop = false
     local currentBhopSpeed = 16
     local timeOnGround = 0
 
-    local bhopMaxInp = CreateTextBox(vOther, "Макс. скорость Bhop (по ум. 100)", tostring(mySetts.bhopMaxSpeed), 3)
+    local bhopMaxInp = CreateTextBox(vOther, "Макс. скорость Bhop (по ум. 100)", tostring(mySetts.bhopMaxSpeed), 4)
     bhopMaxInp.FocusLost:Connect(function()
         local n = tonumber(bhopMaxInp.Text)
         if n then
@@ -1299,7 +1328,7 @@ do
         if not isBhop and player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
             player.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = mySetts.targetSpeed or 16
         end
-    end, 4)
+    end, 5)
 
     RS.RenderStepped:Connect(function(dt)
         if isBhop then
@@ -1337,9 +1366,9 @@ do
         end
     end)
 
-    CreateLabel(vOther, "Телепорты по точкам (Waypoints)", 6)
+    CreateLabel(vOther, "Телепорты по точкам (Waypoints)", 7)
 
-    local tpContainer = make("Frame", {Size = UDim2.new(1,-10,0,0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1, LayoutOrder = 7}, vOther)
+    local tpContainer = make("Frame", {Size = UDim2.new(1,-10,0,0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1, LayoutOrder = 8}, vOther)
     make("UIListLayout", {SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 5)}, tpContainer)
 
     local function renderTeleports()
@@ -1368,7 +1397,7 @@ do
     end
     renderTeleports()
 
-    local tpSaveRow = make("Frame", {Size = UDim2.new(1, -10, 0, 35), BackgroundTransparency = 1, LayoutOrder = 8}, vOther)
+    local tpSaveRow = make("Frame", {Size = UDim2.new(1, -10, 0, 35), BackgroundTransparency = 1, LayoutOrder = 9}, vOther)
     local tpInp = make("TextBox", {Size = UDim2.new(0.65, -5, 1, 0), BackgroundColor3 = Color3.fromRGB(20, 20, 26), PlaceholderText = "Название точки...", Text = "", TextColor3 = Color3.fromRGB(255, 255, 255), Font = Enum.Font.Gotham, TextSize = 12}, tpSaveRow) addCorner(tpInp, 6)
     local tpAddBtn = make("TextButton", {Size = UDim2.new(0.35, 0, 1, 0), Position = UDim2.new(0.65, 5, 0, 0), BackgroundColor3 = Color3.fromRGB(40, 160, 60), Text = "➕ Сохранить", TextColor3 = Color3.fromRGB(255, 255, 255), Font = Enum.Font.GothamBold, TextSize = 12}, tpSaveRow) addCorner(tpAddBtn, 6)
 
@@ -1384,12 +1413,12 @@ do
         end
     end)
 
-    CreateLabel(vOther, "Маршрутный Тестер (Auto-Walk)", 9)
+    CreateLabel(vOther, "Маршрутный Тестер (Auto-Walk)", 10)
     local rtPointsContainer = Instance.new("Frame")
     rtPointsContainer.Size = UDim2.new(1, 0, 0, 0)
     rtPointsContainer.AutomaticSize = Enum.AutomaticSize.Y
     rtPointsContainer.BackgroundTransparency = 1
-    rtPointsContainer.LayoutOrder = 10
+    rtPointsContainer.LayoutOrder = 11
     rtPointsContainer.Parent = vOther
     make("UIListLayout", {Padding = UDim.new(0, 5), SortOrder = Enum.SortOrder.LayoutOrder}, rtPointsContainer)
 
@@ -1421,9 +1450,9 @@ do
     end
     createPointRow() createPointRow()
 
-    CreateButton(vOther, "+ Добавить точку", createPointRow, Color3.fromRGB(40, 120, 200), 11)
-    local rtSpeedInp = CreateTextBox(vOther, "Время пути между точками (сек)", "2", 12)
-    CreateToggleWithBind(vOther, "Зациклить маршрут", "Other_LoopRoute", false, function(state) rtIsLooping = state end, 13)
+    CreateButton(vOther, "+ Добавить точку", createPointRow, Color3.fromRGB(40, 120, 200), 12)
+    local rtSpeedInp = CreateTextBox(vOther, "Время пути между точками (сек)", "2", 13)
+    CreateToggleWithBind(vOther, "Зациклить маршрут", "Other_LoopRoute", false, function(state) rtIsLooping = state end, 14)
 
     CreateButton(vOther, "▶ ЗАПУСТИТЬ / СТОП МАРШРУТ", function()
         if rtIsMoving then
@@ -1457,11 +1486,66 @@ do
             end
             showNotice("Маршрут завершен.")
         end)
-    end, Color3.fromRGB(40, 160, 60), 14)
+    end, Color3.fromRGB(40, 160, 60), 15)
 end
 
 -- ================== 7. НАСТРОЙКИ И КОНФИГИ ==================
 do
+    CreateLabel(vSetts, "Полезные Утилиты (Оптимизация)")
+    CreateToggleWithBind(vSetts, "🛡️ Anti-AFK (Анти-кик)", "Setts_AntiAFK", false, function(state)
+        -- Обрабатывается в глобальном цикле (Idled)
+    end)
+    
+    player.Idled:Connect(function()
+        if mySetts.toggles["🛡️ Anti-AFK (Анти-кик)"] then
+            VirtualUser:CaptureController()
+            VirtualUser:ClickButton2(Vector2.new())
+        end
+    end)
+
+    local fpsBoosterConn
+    CreateToggleWithBind(vSetts, "🥔 FPS Booster (Potato Mode)", "Setts_FPS", false, function(state)
+        if state then
+            local function applyPotato(v)
+                pcall(function()
+                    if v:IsA("BasePart") then
+                        v.Material = Enum.Material.SmoothPlastic
+                        v.Reflectance = 0
+                    elseif v:IsA("Decal") or v:IsA("Texture") then
+                        v.Transparency = 1
+                    elseif v:IsA("ParticleEmitter") or v:IsA("Trail") then
+                        v.Enabled = false
+                    end
+                end)
+            end
+            
+            for _, v in ipairs(workspace:GetDescendants()) do
+                applyPotato(v)
+            end
+            Lighting.GlobalShadows = false
+            
+            -- Шпион за новыми объектами (когда загружается новая карта)
+            fpsBoosterConn = workspace.DescendantAdded:Connect(applyPotato)
+            showNotice("FPS Booster включен (работает на новые карты)!")
+        else
+            if fpsBoosterConn then fpsBoosterConn:Disconnect() fpsBoosterConn = nil end
+            showNotice("FPS Booster отключен (новые карты будут с текстурами).")
+        end
+    end)
+    
+    CreateActionRow(vSetts, "FOV (по умолч. 70)", "Установить FOV", function(val)
+        local fov = tonumber(val)
+        if fov then
+            customFov = fov
+            isFovEnabled = true
+            showNotice("FOV установлен на: " .. fov)
+        end
+    end, "Сброс", function()
+        isFovEnabled = false
+        workspace.CurrentCamera.FieldOfView = 70
+        showNotice("FOV сброшен до 70")
+    end)
+
     CreateLabel(vSetts, "Внешние Скрипты (Запуск)")
     CreateButton(vSetts, "🎯 KutomAimbot (Не для MM2)", function()
         pcall(function()
@@ -1526,6 +1610,65 @@ do
     local origClockTime = Lighting.ClockTime
     local origFogEnd = Lighting.FogEnd
     local origGlobalShadows = Lighting.GlobalShadows
+
+    CreateToggleWithBind(vSetts, "☁️ Приглушенный свет (Dim Light)", "Setts_DimLight", false, function(state)
+        if state then
+            Lighting.Ambient = Color3.fromRGB(60, 60, 60)
+            Lighting.OutdoorAmbient = Color3.fromRGB(50, 50, 50)
+            Lighting.Brightness = 0.2
+        else
+            Lighting.Ambient = origAmbient
+            Lighting.OutdoorAmbient = origOutdoorAmbient
+            Lighting.Brightness = origBrightness
+        end
+    end)
+
+    local playerLightConn
+    CreateToggleWithBind(vSetts, "🔦 Свет только от игрока (Хоррор)", "Setts_PlayerLight", false, function(state)
+        if state then
+            Lighting.Ambient = Color3.fromRGB(0, 0, 0)
+            Lighting.OutdoorAmbient = Color3.fromRGB(0, 0, 0)
+            Lighting.Brightness = 0
+            Lighting.ClockTime = 0
+            Lighting.FogEnd = 200 
+            Lighting.GlobalShadows = true
+
+            local function addLightToPlayer(char)
+                if not char then return end
+                local hrp = char:WaitForChild("HumanoidRootPart", 3)
+                if hrp and not hrp:FindFirstChild("KutomPersonalLight") then
+                    local light = Instance.new("PointLight")
+                    light.Name = "KutomPersonalLight"
+                    light.Color = Color3.fromRGB(240, 240, 255) 
+                    light.Range = 45 
+                    light.Brightness = 2.5
+                    light.Shadows = true 
+                    light.Parent = hrp
+                end
+            end
+
+            addLightToPlayer(player.Character)
+
+            if playerLightConn then playerLightConn:Disconnect() end
+            playerLightConn = player.CharacterAdded:Connect(function(char)
+                addLightToPlayer(char)
+            end)
+        else
+            Lighting.Ambient = origAmbient
+            Lighting.OutdoorAmbient = origOutdoorAmbient
+            Lighting.Brightness = origBrightness
+            Lighting.ClockTime = origClockTime
+            Lighting.FogEnd = origFogEnd
+            Lighting.GlobalShadows = origGlobalShadows
+
+            if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                local l = player.Character.HumanoidRootPart:FindFirstChild("KutomPersonalLight")
+                if l then l:Destroy() end
+            end
+            
+            if playerLightConn then playerLightConn:Disconnect() playerLightConn = nil end
+        end
+    end)
 
     CreateToggleWithBind(vSetts, "☀️ Fullbright (Яркий свет)", "Setts_Fullbright", false, function(state)
         if state then
