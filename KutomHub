@@ -30,6 +30,11 @@ local isAutoShoot = false
 local isSilentAim = false
 local isXRay = false
 local isAutoEvade = false
+local isKillAura = false
+local isSpinbot = false
+local spinSpeed = 20
+local isFakeGodMode = false
+local fakeGodCooldown = 0
 local origXrayTrans = {}
 local customFov = 70
 local isFovEnabled = false
@@ -257,13 +262,14 @@ views["Emotes"] = vEmotes
 local vMove = make("Frame", {Size = UDim2.new(1, -10, 1, -10), Position = UDim2.new(0, 10, 0, 5), BackgroundTransparency = 1, Visible = false}, contentContainer)
 views["Movements"] = vMove
 
+local vSkins = createView("Skins")
 local vMm2 = createView("MM2")
 local vVip = createView("Vip")
 local vTools = createView("Tools")
 local vOther = createView("Other")
 local vSetts = createView("Settings")
 
-local tabNamesRus = {Emotes = "Эмоции", Movements = "Движения", MM2 = "MM2 Читы", Vip = "VIP-Меню", Tools = "Инструменты", Other = "Прочее", Settings = "Настройки"}
+local tabNamesRus = {Emotes = "Эмоции", Movements = "Движения", Skins = "Скины", MM2 = "MM2 Читы", Vip = "VIP-Меню", Tools = "Инструменты", Other = "Прочее", Settings = "Настройки"}
 
 local function switchTab(name)
     for k, v in pairs(views) do 
@@ -283,7 +289,7 @@ local function makeSidebarIcon(icon, tabName)
     return b
 end
 
-makeSidebarIcon("🎵", "Emotes") makeSidebarIcon("🚶", "Movements") makeSidebarIcon("🔪", "MM2") makeSidebarIcon("⭐", "Vip") makeSidebarIcon("🛠️", "Tools") makeSidebarIcon("📦", "Other") makeSidebarIcon("⚙️", "Settings")
+makeSidebarIcon("🎵", "Emotes") makeSidebarIcon("🚶", "Movements") makeSidebarIcon("🎨", "Skins") makeSidebarIcon("🔪", "MM2") makeSidebarIcon("⭐", "Vip") makeSidebarIcon("🛠️", "Tools") makeSidebarIcon("📦", "Other") makeSidebarIcon("⚙️", "Settings")
 
 -- КОМПОНЕНТЫ ИНТЕРФЕЙСА ДЛЯ ВКЛАДОК
 local function CreateLabel(page, text, layoutOrder) 
@@ -293,7 +299,7 @@ local function CreateButton(page, text, callback, color, layoutOrder)
     local Btn = make("TextButton", {Size = UDim2.new(1, -10, 0, 34), BackgroundColor3 = color or Color3.fromRGB(25, 25, 32), Text = text, TextColor3 = Color3.fromRGB(220, 220, 220), Font = Enum.Font.GothamBold, TextSize = 12, LayoutOrder = layoutOrder or 0}, page)
     addCorner(Btn, 6) Btn.MouseButton1Click:Connect(callback) return Btn
 end
-local function CreateTextBox(page, placeholder, text, layoutOrder)
+local function CreateTextBox(page, placeholder, text, layoutOrder) 
     local Box = make("TextBox", {Size = UDim2.new(1, -10, 0, 34), BackgroundColor3 = Color3.fromRGB(20, 20, 26), PlaceholderText = placeholder, Text = text or "", TextColor3 = Color3.fromRGB(255, 255, 255), Font = Enum.Font.Gotham, TextSize = 12, LayoutOrder = layoutOrder or 0}, page)
     addCorner(Box, 6) return Box
 end
@@ -683,8 +689,8 @@ do
         local Icon = make("ImageLabel", {Size = UDim2.new(0, 36, 0, 36), Position = UDim2.new(0, 4, 0.5, -18), BackgroundColor3 = Color3.fromRGB(40,40,45), BackgroundTransparency = 0, Image = "rbxthumb://type=Bundle&id=" .. tostring(bundleId) .. "&w=150&h=150"}, Row) addCorner(Icon, 6)
         local nameLbl = make("TextLabel", {Size = UDim2.new(0.55, -45, 1, 0), Position = UDim2.new(0, 45, 0, 0), BackgroundTransparency=1, TextColor3=Color3.fromRGB(255,255,255), Text=bundleName, Font=Enum.Font.Gotham, TextSize=11, TextXAlignment=Enum.TextXAlignment.Left, TextTruncate=Enum.TextTruncate.AtEnd}, Row)
         
-        local applyBtn = make("TextButton", {Size=UDim2.new(0.2, 0, 0, 28), Position=UDim2.new(0.55, 0, 0.5, -14), BackgroundColor3=Color3.fromRGB(40,160,60), Text="✨ Прим.", TextColor3=Color3.fromRGB(255,255,255), Font=Enum.Font.GothamBold, TextSize=10}, Row) addCorner(applyBtn, 4)
-        local saveCatBtn = make("TextButton", {Size=UDim2.new(0.2, 0, 0, 28), Position=UDim2.new(0.78, 0, 0.5, -14), BackgroundColor3=Color3.fromRGB(40,120,200), Text="➕ Сохр.", TextColor3=Color3.fromRGB(255,255,255), Font=Enum.Font.GothamBold, TextSize=10}, Row) addCorner(saveCatBtn, 4)
+        local applyBtn = make("TextButton", {Size=UDim2.new(0.2, 0, 0, 28), Position=UDim2.new(0.55, 0, 0.5, -14), BackgroundColor3=Color3.fromRGB(40,160,60), Text="✨ Прим.", TextColor3=Color3.fromRGB(255,255,255), Font = Enum.Font.GothamBold, TextSize = 10}, Row) addCorner(applyBtn, 4)
+        local saveCatBtn = make("TextButton", {Size=UDim2.new(0.2, 0, 0, 28), Position=UDim2.new(0.78, 0, 0.5, -14), BackgroundColor3=Color3.fromRGB(40,120,200), Text="➕ Сохр.", TextColor3=Color3.fromRGB(255,255,255), Font = Enum.Font.GothamBold, TextSize = 10}, Row) addCorner(saveCatBtn, 4)
 
         applyBtn.MouseButton1Click:Connect(function() applyBundle(bundleId, bundleName) end)
         saveCatBtn.MouseButton1Click:Connect(function() 
@@ -838,6 +844,10 @@ do
         isSilentAim = state
     end)
 
+    CreateToggleWithBind(vMm2, "💀 Kill Aura (Маньяк)", "MM2_KillAura", false, function(state)
+        isKillAura = state
+    end)
+
     CreateLabel(vMm2, "Визуал ESP и Полезное")
     
     CreateToggleWithBind(vMm2, "👁️ X-Ray (Wallhack на карту)", "MM2_XRay", false, function(state)
@@ -949,6 +959,10 @@ do
 
     RS.RenderStepped:Connect(function()
         pcall(function()
+            if isSpinbot and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                player.Character.HumanoidRootPart.CFrame = player.Character.HumanoidRootPart.CFrame * CFrame.Angles(0, math.rad(spinSpeed), 0)
+            end
+
             if isCrosshair then
                 UIS.MouseIconEnabled = false
                 customCrosshair.Visible = true
@@ -966,6 +980,21 @@ do
     task.spawn(function()
         while task.wait(0.05) do
             pcall(function()
+                if isKillAura and player.Character then
+                    local myKnife = player.Character:FindFirstChild("Knife")
+                    if myKnife and myKnife:FindFirstChild("Handle") then
+                        for _, p in ipairs(Players:GetPlayers()) do
+                            if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
+                                if firetouchinterest then
+                                    firetouchinterest(myKnife.Handle, p.Character.HumanoidRootPart, 0)
+                                    task.wait()
+                                    firetouchinterest(myKnife.Handle, p.Character.HumanoidRootPart, 1)
+                                end
+                            end
+                        end
+                    end
+                end
+
                 if isAutoShoot and player.Character then
                     local myGun = player.Character:FindFirstChild("Gun") or player.Character:FindFirstChild("Revolver")
                     if myGun then
@@ -1002,19 +1031,56 @@ do
                         local murdPos = murd.HumanoidRootPart.Position
                         local dist = (myPos - murdPos).Magnitude
                         
-                        -- Радиус увеличен до 30 стадов для безопасности
                         if dist < 30 then
                             local dir = (myPos - murdPos).Unit
-                            dir = Vector3.new(dir.X, 0, dir.Z).Unit -- Убираем Y, чтобы бежать ровно по земле
-                            
-                            -- Задаем точку, в которую нужно убегать (на 15 стадов дальше от маньяка)
+                            dir = Vector3.new(dir.X, 0, dir.Z).Unit 
                             local safePoint = myPos + (dir * 15)
                             player.Character.Humanoid:MoveTo(safePoint)
                             
-                            -- Экстренный авто-прыжок, если маньяк почти достал (12 стадов)
                             if dist < 12 and player.Character.Humanoid.FloorMaterial ~= Enum.Material.Air then
                                 player.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
                             end
+                        end
+                    end
+                end
+
+                if isFakeGodMode and tick() > fakeGodCooldown and player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0 then
+                    local myPos = player.Character.HumanoidRootPart.Position
+                    local murd = nil
+                    for _, p in ipairs(Players:GetPlayers()) do
+                        if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                            if getRoleInfo(p) == "MURDERER" then
+                                local knife = p.Character:FindFirstChild("Knife")
+                                if knife then
+                                    murd = p.Character
+                                    break
+                                end
+                            end
+                        end
+                    end
+                    
+                    if murd and murd:FindFirstChild("HumanoidRootPart") then
+                        local dist = (myPos - murd.HumanoidRootPart.Position).Magnitude
+                        if dist < 15 then
+                            fakeGodCooldown = tick() + 5 
+                            task.spawn(function()
+                                player.Character.Archivable = true
+                                local clone = player.Character:Clone()
+                                if clone then
+                                    clone.Parent = workspace
+                                    if clone:FindFirstChild("Humanoid") then
+                                        clone.Humanoid.Health = 0
+                                    end
+                                    game:GetService("Debris"):AddItem(clone, 4)
+                                end
+                                player.Character.HumanoidRootPart.CFrame = player.Character.HumanoidRootPart.CFrame + Vector3.new(0, 150, 0)
+                                local bv = Instance.new("BodyVelocity")
+                                bv.Velocity = Vector3.zero
+                                bv.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+                                bv.Parent = player.Character.HumanoidRootPart
+                                game:GetService("Debris"):AddItem(bv, 3)
+                                showNotice("👻 Иллюзия Бессмертия сработала!")
+                            end)
                         end
                     end
                 end
@@ -1115,7 +1181,7 @@ do
     end)
 end
 
--- ================== 4. VIP-МЕНЮ ==================
+-- ================== 5. VIP-МЕНЮ ==================
 do
     CreateLabel(vVip, "Kutom Fling Script")
     CreateButton(vVip, "🌪️ Запустить KutomFling", function()
@@ -1224,7 +1290,7 @@ do
     end)
 end
 
--- ================== 5. TOOLS (ИНСТРУМЕНТЫ) ==================
+-- ================== 6. TOOLS (ИНСТРУМЕНТЫ) ==================
 do
     CreateLabel(vTools, "Выдача Инструментов", 1)
 
@@ -1298,7 +1364,7 @@ do
     end, Color3.fromRGB(180, 50, 50), 7)
 end
 
--- ================== 6. ПРОЧЕЕ ==================
+-- ================== 7. ПРОЧЕЕ ==================
 do
     CreateLabel(vOther, "Утилиты для выживания", 0)
     
@@ -1503,9 +1569,30 @@ do
             showNotice("Маршрут завершен.")
         end)
     end, Color3.fromRGB(40, 160, 60), 15)
+
+    -- ДОБАВЛЕНЫ НОВЫЕ ЭКСПЛОЙТЫ
+    CreateLabel(vOther, "Троллинг и Эксплойты", 16)
+    
+    local spinSpeedInp = CreateTextBox(vOther, "Скорость Spinbot (умолч. 20)", "20", 17)
+    spinSpeedInp.FocusLost:Connect(function()
+        local n = tonumber(spinSpeedInp.Text)
+        if n then 
+            spinSpeed = n 
+            showNotice("Скорость Spinbot: " .. n)
+        end
+    end)
+
+    CreateToggleWithBind(vOther, "🌪️ Spinbot (Вращение)", "Other_Spinbot", false, function(state) 
+        isSpinbot = state 
+    end, 18)
+
+    CreateToggleWithBind(vOther, "👻 Фейк Бессмертие (Иллюзия)", "Other_FakeGodMode", false, function(state) 
+        isFakeGodMode = state 
+    end, 19)
+
 end
 
--- ================== 7. НАСТРОЙКИ И КОНФИГИ ==================
+-- ================== 8. НАСТРОЙКИ И КОНФИГИ ==================
 do
     CreateLabel(vSetts, "Полезные Утилиты (Оптимизация)")
     CreateToggleWithBind(vSetts, "🛡️ Anti-AFK (Анти-кик)", "Setts_AntiAFK", false, function(state)
@@ -1540,7 +1627,6 @@ do
             end
             Lighting.GlobalShadows = false
             
-            -- Шпион за новыми объектами (когда загружается новая карта)
             fpsBoosterConn = workspace.DescendantAdded:Connect(applyPotato)
             showNotice("FPS Booster включен (работает на новые карты)!")
         else
