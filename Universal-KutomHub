@@ -989,16 +989,32 @@ do
                 if isAutoEvade and player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0 then
                     local murd = nil
                     for _, p in ipairs(Players:GetPlayers()) do
-                        if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and getRoleInfo(p) == "MURDERER" then
-                            murd = p.Character break
+                        if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                            if getRoleInfo(p) == "MURDERER" then
+                                murd = p.Character
+                                break
+                            end
                         end
                     end
-                    if murd then
-                        local dist = (player.Character.HumanoidRootPart.Position - murd.HumanoidRootPart.Position).Magnitude
-                        if dist < 18 then
-                            local dir = (player.Character.HumanoidRootPart.Position - murd.HumanoidRootPart.Position).Unit
-                            dir = Vector3.new(dir.X, 0, dir.Z).Unit
-                            player.Character.Humanoid:Move(dir)
+                    
+                    if murd and murd:FindFirstChild("HumanoidRootPart") then
+                        local myPos = player.Character.HumanoidRootPart.Position
+                        local murdPos = murd.HumanoidRootPart.Position
+                        local dist = (myPos - murdPos).Magnitude
+                        
+                        -- Радиус увеличен до 30 стадов для безопасности
+                        if dist < 30 then
+                            local dir = (myPos - murdPos).Unit
+                            dir = Vector3.new(dir.X, 0, dir.Z).Unit -- Убираем Y, чтобы бежать ровно по земле
+                            
+                            -- Задаем точку, в которую нужно убегать (на 15 стадов дальше от маньяка)
+                            local safePoint = myPos + (dir * 15)
+                            player.Character.Humanoid:MoveTo(safePoint)
+                            
+                            -- Экстренный авто-прыжок, если маньяк почти достал (12 стадов)
+                            if dist < 12 and player.Character.Humanoid.FloorMaterial ~= Enum.Material.Air then
+                                player.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                            end
                         end
                     end
                 end
@@ -1493,7 +1509,7 @@ end
 do
     CreateLabel(vSetts, "Полезные Утилиты (Оптимизация)")
     CreateToggleWithBind(vSetts, "🛡️ Anti-AFK (Анти-кик)", "Setts_AntiAFK", false, function(state)
-        -- Обрабатывается в глобальном цикле (Idled)
+        -- Обрабатывается в global loop
     end)
     
     player.Idled:Connect(function()
