@@ -1651,7 +1651,6 @@ do
         showNotice("FOV сброшен до 70")
     end)
     
-    -- НОВАЯ КНОПКА ВОЗВРАТА SHIFTLOCK
     CreateButton(vSetts, "🔓 Вернуть ShiftLock (Если отключен)", function()
         pcall(function()
             player.DevEnableMouseLock = true
@@ -1661,12 +1660,20 @@ do
     end, Color3.fromRGB(40, 160, 60))
 
     CreateLabel(vSetts, "Внешние Скрипты (Запуск)")
+    
     CreateButton(vSetts, "🎯 KutomAimbot (Не для MM2)", function()
         pcall(function()
             loadstring(game:HttpGet("https://raw.githubusercontent.com/Egorzq/KutomHub/refs/heads/main/KutomAimbot"))()
             showNotice("KutomAimbot запущен!")
         end)
     end, Color3.fromRGB(150, 50, 200))
+
+    CreateButton(vSetts, "👻 Включить Невидимость", function()
+        pcall(function()
+            loadstring(game:HttpGet('https://pastefy.app/6zjosppv/raw'))()
+            showNotice("Скрипт на невидимость запущен!")
+        end)
+    end, Color3.fromRGB(100, 150, 200))
 
     CreateLabel(vSetts, "Конфиг (Файлы)")
     CreateActionRow(vSetts, "Имя конфига...", "💾 Сохранить", function(val)
