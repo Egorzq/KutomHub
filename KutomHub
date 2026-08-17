@@ -262,14 +262,13 @@ views["Emotes"] = vEmotes
 local vMove = make("Frame", {Size = UDim2.new(1, -10, 1, -10), Position = UDim2.new(0, 10, 0, 5), BackgroundTransparency = 1, Visible = false}, contentContainer)
 views["Movements"] = vMove
 
-local vSkins = createView("Skins")
 local vMm2 = createView("MM2")
 local vVip = createView("Vip")
 local vTools = createView("Tools")
 local vOther = createView("Other")
 local vSetts = createView("Settings")
 
-local tabNamesRus = {Emotes = "Эмоции", Movements = "Движения", Skins = "Скины", MM2 = "MM2 Читы", Vip = "VIP-Меню", Tools = "Инструменты", Other = "Прочее", Settings = "Настройки"}
+local tabNamesRus = {Emotes = "Эмоции", Movements = "Движения", MM2 = "MM2 Читы", Vip = "VIP-Меню", Tools = "Инструменты", Other = "Прочее", Settings = "Настройки"}
 
 local function switchTab(name)
     for k, v in pairs(views) do 
@@ -289,7 +288,7 @@ local function makeSidebarIcon(icon, tabName)
     return b
 end
 
-makeSidebarIcon("🎵", "Emotes") makeSidebarIcon("🚶", "Movements") makeSidebarIcon("🎨", "Skins") makeSidebarIcon("🔪", "MM2") makeSidebarIcon("⭐", "Vip") makeSidebarIcon("🛠️", "Tools") makeSidebarIcon("📦", "Other") makeSidebarIcon("⚙️", "Settings")
+makeSidebarIcon("🎵", "Emotes") makeSidebarIcon("🚶", "Movements") makeSidebarIcon("🔪", "MM2") makeSidebarIcon("⭐", "Vip") makeSidebarIcon("🛠️", "Tools") makeSidebarIcon("📦", "Other") makeSidebarIcon("⚙️", "Settings")
 
 -- КОМПОНЕНТЫ ИНТЕРФЕЙСА ДЛЯ ВКЛАДОК
 local function CreateLabel(page, text, layoutOrder) 
@@ -959,7 +958,8 @@ do
 
     RS.RenderStepped:Connect(function()
         pcall(function()
-            if isSpinbot and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            if isSpinbot and player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character:FindFirstChildOfClass("Humanoid") then
+                player.Character:FindFirstChildOfClass("Humanoid").AutoRotate = false
                 player.Character.HumanoidRootPart.CFrame = player.Character.HumanoidRootPart.CFrame * CFrame.Angles(0, math.rad(spinSpeed), 0)
             end
 
@@ -1181,7 +1181,7 @@ do
     end)
 end
 
--- ================== 5. VIP-МЕНЮ ==================
+-- ================== 4. VIP-МЕНЮ ==================
 do
     CreateLabel(vVip, "Kutom Fling Script")
     CreateButton(vVip, "🌪️ Запустить KutomFling", function()
@@ -1290,7 +1290,7 @@ do
     end)
 end
 
--- ================== 6. TOOLS (ИНСТРУМЕНТЫ) ==================
+-- ================== 5. TOOLS (ИНСТРУМЕНТЫ) ==================
 do
     CreateLabel(vTools, "Выдача Инструментов", 1)
 
@@ -1364,7 +1364,7 @@ do
     end, Color3.fromRGB(180, 50, 50), 7)
 end
 
--- ================== 7. ПРОЧЕЕ ==================
+-- ================== 6. ПРОЧЕЕ ==================
 do
     CreateLabel(vOther, "Утилиты для выживания", 0)
     
@@ -1570,7 +1570,7 @@ do
         end)
     end, Color3.fromRGB(40, 160, 60), 15)
 
-    -- ДОБАВЛЕНЫ НОВЫЕ ЭКСПЛОЙТЫ
+    -- ТРОЛЛИНГ И ЭКСПЛОЙТЫ
     CreateLabel(vOther, "Троллинг и Эксплойты", 16)
     
     local spinSpeedInp = CreateTextBox(vOther, "Скорость Spinbot (умолч. 20)", "20", 17)
@@ -1583,7 +1583,10 @@ do
     end)
 
     CreateToggleWithBind(vOther, "🌪️ Spinbot (Вращение)", "Other_Spinbot", false, function(state) 
-        isSpinbot = state 
+        isSpinbot = state
+        if not state and player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
+            player.Character:FindFirstChildOfClass("Humanoid").AutoRotate = true
+        end
     end, 18)
 
     CreateToggleWithBind(vOther, "👻 Фейк Бессмертие (Иллюзия)", "Other_FakeGodMode", false, function(state) 
@@ -1592,7 +1595,7 @@ do
 
 end
 
--- ================== 8. НАСТРОЙКИ И КОНФИГИ ==================
+-- ================== 7. НАСТРОЙКИ И КОНФИГИ ==================
 do
     CreateLabel(vSetts, "Полезные Утилиты (Оптимизация)")
     CreateToggleWithBind(vSetts, "🛡️ Anti-AFK (Анти-кик)", "Setts_AntiAFK", false, function(state)
@@ -1647,6 +1650,15 @@ do
         workspace.CurrentCamera.FieldOfView = 70
         showNotice("FOV сброшен до 70")
     end)
+    
+    -- НОВАЯ КНОПКА ВОЗВРАТА SHIFTLOCK
+    CreateButton(vSetts, "🔓 Вернуть ShiftLock (Если отключен)", function()
+        pcall(function()
+            player.DevEnableMouseLock = true
+            game:GetService("StarterPlayer").EnableMouseLockOption = true
+            showNotice("ShiftLock разблокирован! Проверь настройки (ESC).")
+        end)
+    end, Color3.fromRGB(40, 160, 60))
 
     CreateLabel(vSetts, "Внешние Скрипты (Запуск)")
     CreateButton(vSetts, "🎯 KutomAimbot (Не для MM2)", function()
